@@ -69,8 +69,8 @@ if [ -f $VC ]; then
 	echo "V) Voltage charge"
 fi
 
-read -r c
 echo -n "\n[CHOICE]: "
+read -r c
 case $c in
 	q|Q)
 		echo ""
