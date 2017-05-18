@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/system/bin/sh
 
 #################################################################################
 # nome	 : Battery Charge Control												#
@@ -18,6 +18,10 @@
 QC=/sys/class/power_supply/battery/le_quick_charge_mode
 VC=/sys/class/power_supply/battery/voltage_max
 DESIGN=/sys/class/power_supply/battery/voltage_max_design
+
+#Detect variables
+UNSUPPORTED=false
+[ ! -f $QC ] && [ ! -f $VC ] && UNSUPPORTED=true
 
 #Functions
 convert(){
@@ -50,35 +54,45 @@ wait_for(){
 
 #Begin
 clear;
-echo "Battery charge control"
+echo "Battery Charge Control"
 echo ""
-if [ -e $QC ]; then
+if $UNSUPPORTED; then
+	echo "Your device is unsupported!"
+	echo "You can try changing your kernel/ROM\nthat has the necessary files to be supported."
+	sleep 2
+	exit 1
+fi
+if [ -f $QC ]; then
 	echo "Q) QuickCharge enable/disable"
 fi
-echo "V) Voltage charge"
+if [ -f $VC ]; then
+	echo "V) Voltage charge"
+fi
 
 read -r c
+echo -n "\n[CHOICE]: "
 case $c in
 	q|Q)
 		echo ""
 		if [ $(cat $QC) -eq 1 ]; then
-			echo "QuickCharge actual value: Enable"
+			echo "QuickCharge actual value: Enabled"
 			echo ""
 			echo "0) Disable"
 			echo "b) Back"
 		elif [ $(cat $QC) -eq 0 ]; then
-			echo "QuickCharge actual value: Disable"
+			echo "QuickCharge actual value: Disabled"
 			echo ""
 			echo "1) Enable"
 			echo "b) Back"
 		fi
+		echo -n "\n[CHOICE]: "
 		read -r c
 		case $c in
 			0)
 				echo 0 > $QC
 				wait_for 2
 				if [ $QC -eq 0 ]; then
-					echo "QuickCharge: Disable"
+					echo "QuickCharge: Disabled"
 				else
 					echo "Not applied"
 				fi
@@ -87,7 +101,7 @@ case $c in
 				echo 1 > $QC
 				wait_for 2
 				if [ $QC -eq 1 ]; then
-					echo "QuickCharge: Enable"
+					echo "QuickCharge: Enabled"
 				else
 					echo "Not applied"
 				fi
@@ -99,7 +113,7 @@ case $c in
 				clear;
 				echo "Invalid option, please try again"
 				sleep 1
-				exit
+				exit 1
 			;;
 		esac
 	;;
@@ -112,6 +126,7 @@ case $c in
 		des=$(cat $DESIGN); convert $des
 		echo "3) V$val (standard life battery)"
 		echo "b) Back"
+		echo -n "\n[CHOICE]: "
 		read -r c
 		case $c in
 			1)
@@ -135,7 +150,7 @@ case $c in
 				echo "Actual voltage charge: V$val"
 			;;
 			3)
-				echo $DESIGN > $VC
+				echo $(cat $DESIGN) > $VC
 				wait_for 2
 				clear
 				echo "done"
@@ -147,12 +162,17 @@ case $c in
 			b|B)
 				exit
 			;;
+			*)
+				clear;
+				echo "Invalid option, please try again"
+				sleep 1
+				exit 1
 		esac
 	;;
 	*)
 		clear;
 		echo "Invalid option, please try again"
 		sleep 1
-		exit
+		exit 1
 	;;
 esac
