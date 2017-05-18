@@ -72,7 +72,7 @@ wait_for(){
 
 #Begin
 clear;
-echo -e "${Y}Battery Charge Control${N}"
+echo -e "${G}Battery Charge Control${N}"
 echo ""
 if $UNSUPPORTED; then
 	echo "Your device is unsupported!"
