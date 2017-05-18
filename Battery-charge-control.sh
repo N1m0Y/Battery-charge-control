@@ -19,14 +19,32 @@ QC=/sys/class/power_supply/battery/le_quick_charge_mode
 VC=/sys/class/power_supply/battery/voltage_max
 DESIGN=/sys/class/power_supply/battery/voltage_max_design
 
+#Internal variables
+busybox=/dev/busybox
+
 #Detect variables
 UNSUPPORTED=false
 [ ! -f $QC ] && [ ! -f $VC ] && UNSUPPORTED=true
 
+# Colors
+G='\e[01;32m'
+R='\e[01;31m'
+N='\e[00;37;40m'
+Y='\e[01;33m'
+B='\e[01;34m'
+V='\e[01;35m'
+Bl='\e[01;30m'
+C='\e[01;36m'
+W='\e[01;37m'
+
 #Functions
 convert(){
 	#Convert to decimal value
-	x=$(awk "BEGIN {printf \"%.2f\n\", $1/1000}")
+	if [ $1 -lt 10000 ]; then
+		x=$($busybox/awk "BEGIN {printf \"%.2f\n\", $1/1000}")
+	elif [ $1 -gt 10000 ]; then
+		x=$($busybox/awk "BEGIN {printf \"%.2f\n\", $1/1000000}")
+	fi
 	val=$x
 }
 
@@ -54,7 +72,7 @@ wait_for(){
 
 #Begin
 clear;
-echo "Battery Charge Control"
+echo -e "${Y}Battery Charge Control${N}"
 echo ""
 if $UNSUPPORTED; then
 	echo "Your device is unsupported!"
@@ -63,10 +81,10 @@ if $UNSUPPORTED; then
 	exit 1
 fi
 if [ -f $QC ]; then
-	echo "Q) QuickCharge enable/disable"
+	echo -e "${W}Q) QuickCharge enable/disable${N}"
 fi
 if [ -f $VC ]; then
-	echo "V) Voltage charge"
+	echo -e "${W}V) Voltage charge${N}"
 fi
 
 echo -n "\n[CHOICE]: "
@@ -75,14 +93,14 @@ case $c in
 	q|Q)
 		echo ""
 		if [ $(cat $QC) -eq 1 ]; then
-			echo "QuickCharge actual value: Enabled"
+			echo -e "${W}QuickCharge actual value:${N} ${G}Enabled${N}"
 			echo ""
-			echo "0) Disable"
+			echo -e "${W}0) Disable${N}"
 			echo "b) Back"
 		elif [ $(cat $QC) -eq 0 ]; then
-			echo "QuickCharge actual value: Disabled"
+			echo -e "${W}QuickCharge actual value:${N} ${R}Disabled${N}"
 			echo ""
-			echo "1) Enable"
+			echo -e "${W}1) Enable${N}"
 			echo "b) Back"
 		fi
 		echo -n "\n[CHOICE]: "
@@ -91,8 +109,8 @@ case $c in
 			0)
 				echo 0 > $QC
 				wait_for 2
-				if [ $QC -eq 0 ]; then
-					echo "QuickCharge: Disabled"
+				if [ $(cat $QC) -eq 0 ]; then
+					echo -e "${W}QuickCharge:${N} ${R}Disabled${N}"
 				else
 					echo "Not applied"
 				fi
@@ -100,14 +118,14 @@ case $c in
 			1)
 				echo 1 > $QC
 				wait_for 2
-				if [ $QC -eq 1 ]; then
-					echo "QuickCharge: Enabled"
+				if [ $(cat QC) -eq 1 ]; then
+					echo -e "${W}QuickCharge:${N} ${G}Enabled${N}"
 				else
 					echo "Not applied"
 				fi
 			;;
 			b|B)
-				exit
+				exit 1
 			;;
 			*)
 				clear;
@@ -118,13 +136,16 @@ case $c in
 		esac
 	;;
 	v|V)
+		clear
 		vc=$(cat $VC); convert $vc
-		echo "Actual voltage charge: V$val"
+		echo -e "${W}Actual voltage charge:${N} ${G}V$val${N}"
 		echo ""
-		echo "1) V3,92 53% (Long life battery)"
-		echo "2) V4,18 80% (middle life battery)"
-		des=$(cat $DESIGN); convert $des
-		echo "3) V$val (standard life battery)"
+		echo -e "${W}1) V3,92 53% (Long life battery)${N}"
+		echo -e "${W}2) V4,16 80% (middle life battery)${N}"
+		if [ -f $DESIGN ]; then
+			des=$(cat $DESIGN); convert $des
+			echo -e "${W}3) V$val 100% (standard life battery)${N}"
+		fi
 		echo "b) Back"
 		echo -n "\n[CHOICE]: "
 		read -r c
@@ -136,31 +157,32 @@ case $c in
 				echo "done"
 				sleep 0.5
 				clear
-				val=$(cat $VC); convert $val
-				echo "Actual voltage charge: V$val"
+				vc=$(cat $VC); convert $vc
+				echo -e "${W}Actual voltage charge:${N} ${G}V$val${N}"
 			;;
 			2)
-				echo 4180 > $VC
+				echo 4160 > $VC
 				wait_for 2
 				clear
 				echo "done"
 				sleep 0.5
 				clear
-				val=$(cat $VC); convert $val
-				echo "Actual voltage charge: V$val"
+				vc=$(cat $VC); convert $vc
+				echo -e "${W}Actual voltage charge:${N} ${G}V$val${N}"
 			;;
 			3)
-				echo $(cat $DESIGN) > $VC
+				des=$(cat $DESIGN)
+				echo $(($des/1000)) > $VC
 				wait_for 2
 				clear
 				echo "done"
 				sleep 0.5
 				clear
-				val=$(cat $VC); convert $val
-				echo "Actual voltage charge: V$val"
+				vc=$(cat $VC); convert $vc
+				echo -e "${W}Actual voltage charge:${N} ${G}V$val${N}"
 			;;
 			b|B)
-				exit
+				exit 1
 			;;
 			*)
 				clear;
