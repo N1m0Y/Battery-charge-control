@@ -18,6 +18,13 @@
 QC=/sys/class/power_supply/battery/le_quick_charge_mode
 VC=/sys/class/power_supply/battery/voltage_max
 DESIGN=/sys/class/power_supply/battery/voltage_max_design
+Status=/sys/class/power_supply/battery/status
+Temp=/sys/class/power_supply/battery/temp
+Technology=/sys/class/power_supply/battery/technology
+Health=/sys/class/power_supply/battery/health
+LF=1
+MV=1
+AV=0
 
 #Internal variables
 busybox=/dev/busybox
@@ -70,7 +77,30 @@ wait_for(){
 	done
 }
 
+logcat(){
+	if [ $LF -eq 1 ]; then
+		echo $1 | tee -a $LOG_FILE;
+	fi
+}
+
+# Log file #
+LOG_FILE=/sdcard/BCC.log;
+Log_old=/sdcard/BCC.old;
+if [ -e "$Log_old" ]; then
+	rm $Log_old;
+fi;
+if [ -e "$LOG_FILE" ]; then
+	mv $LOG_FILE $Log_old;
+	rm $LOG_FILE;
+fi;
+wait_for 2
+
+logcat "Starting BCC.log $( date +"%d-%m-%Y %H:%M:%S" )"
+echo "Ok lets start working";
+sleep 2
+
 #Begin
+while true; do
 clear;
 echo -e "${G}Battery Charge Control${N}"
 echo ""
@@ -80,17 +110,46 @@ if $UNSUPPORTED; then
 	sleep 2
 	exit 1
 fi
+if [ -f $Status ]; then
+	echo -e "${W}Status: $(cat $Status)${N}"
+fi
+if [ -f $Health ]; then
+	echo -e "${W}Health: $(cat $Health)${N}"
+fi
+if [ -f $Technology ]; then
+	echo -e "${W}Technology: $(cat $Technology)${N}"
+fi
+echo ""
+echo ""
 if [ -f $QC ]; then
-	echo -e "${W}Q) QuickCharge enable/disable${N}"
+	if [ $(cat $QC) -eq 1 ]; then
+		echo -e "${G}Q)${N} ${W}QuickCharge enable/disable${N}"
+	elif [ $(cat $QC) -eq 0 ]; then
+		echo -e "${R}Q)${N} ${W}QuickCharge enable/disable${N}"
+	fi
 fi
 if [ -f $VC ]; then
-	echo -e "${W}V) Voltage charge${N}"
+	if [ $AV -eq 1 ] && [ $MV -eq 0 ]; then
+		echo -e "${R}M)${N} ${W}Manual charging voltage${N}"
+		echo -e "${G}A)${N} ${W}Automatic charging voltage${N}"
+	elif [ $AV -eq 0 ] && [ $MV -eq 1 ]; then
+		echo -e "${G}M)${N} ${W}Manual charging voltage${N}"
+		echo -e "${R}A)${N} ${W}Automatic charging voltage${N}"
+	fi
+fi
+if [ -f $LOG_FILE ]; then
+	if [ $LF -eq 1 ]; then
+		echo -e "${G}L)${N} ${W}Logcat enabled/disabled${N}"
+	elif [ $LF -eq 0 ]; then
+		echo -e "${R}L)${N} ${W}Logcat enabled/disabled${N}"
+	fi
 fi
 
 echo -n "\n[CHOICE]: "
 read -r c
 case $c in
 	q|Q)
+		clear;
 		echo ""
 		if [ $(cat $QC) -eq 1 ]; then
 			echo -e "${W}QuickCharge actual value:${N} ${G}Enabled${N}"
@@ -135,16 +194,16 @@ case $c in
 			;;
 		esac
 	;;
-	v|V)
-		clear
+	m|M)
+		clear;
 		vc=$(cat $VC); convert $vc
 		echo -e "${W}Actual voltage charge:${N} ${G}V$val${N}"
 		echo ""
-		echo -e "${W}1) V3,92 53% (Long life battery)${N}"
-		echo -e "${W}2) V4,16 80% (middle life battery)${N}"
+		echo -e "${W}1) V3,92 (Long life battery)${N}"
+		echo -e "${W}2) V4,16 (middle life battery)${N}"
 		if [ -f $DESIGN ]; then
 			des=$(cat $DESIGN); convert $des
-			echo -e "${W}3) V$val 100% (standard life battery)${N}"
+			echo -e "${W}3) V$val (standard life battery)${N}"
 		fi
 		echo "b) Back"
 		echo -n "\n[CHOICE]: "
@@ -191,6 +250,22 @@ case $c in
 				exit 1
 		esac
 	;;
+	a|A)
+		clear;
+		echo -e "${W}How much percentage do you want to recharge? (enter only the percentage value without %)${N}"
+		echo -n "\n[CHOICE]: "
+		read -r c
+		amv=$c
+		echo ""
+		echo "Connect the device to the charger to get started..."
+	;;
+	l|L)
+		if [ $LF = 1 ]; then
+			LF=0
+		elif [ $LF = 0 ]; then
+			LF=1
+		fi
+	;;
 	*)
 		clear;
 		echo "Invalid option, please try again"
@@ -198,3 +273,4 @@ case $c in
 		exit 1
 	;;
 esac
+done
