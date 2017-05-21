@@ -83,6 +83,8 @@ logcat(){
 	if [ $LF -eq 1 ]; then
 		echo $1 | tee -a $LOG_FILE;
 	fi
+	echo "ART Optimization ${ver}: $@" >> /cache/magisk.log
+	log -p i -t "ART Optimizer ${ver}" "$@"
 }
 
 # Log file #
