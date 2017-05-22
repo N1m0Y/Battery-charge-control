@@ -30,7 +30,8 @@ AV=0
 
 #Internal variables
 busybox=/dev/busybox
-ver=$($busybox grep "id=" /magisk/battery-charge-control/module.prop | $busybox cut -d= -f2)
+ver=$($busybox/grep "id=" /magisk/battery-charge-control/module.prop | $busybox/cut -d= -f2)
+version=$($busybox/grep "version=" /magisk/battery-charge-control/module.prop | $busybox/cut -d= -f2)
 
 #Detect variables
 UNSUPPORTED=false
@@ -109,12 +110,15 @@ while true; do
 	clear;
 	echo -e "${G}Battery Charge Control${N}"
 	echo ""
+	echo ""
 	if $UNSUPPORTED; then
 		echo "Your device is unsupported!"
 		echo "You can try changing your kernel/ROM\nthat has the necessary files to be supported."
 		sleep 2
 		exit 1
 	fi
+
+	echo -e "${W}BCC_Magisk $version${N}"
 	if [ -f $Status ]; then
 		echo -e "${W}Status: $(cat $Status)${N}"
 	fi
@@ -124,6 +128,10 @@ while true; do
 	if [ -f $Technology ]; then
 		echo -e "${W}Technology: $(cat $Technology)${N}"
 	fi
+	des=$(cat $DESIGN); convert $des
+	echo -e "${W}Voltage stock:${N} ${G}$val${N}"
+	vc=$(cat $VC); convert $vc
+	echo -e "${W}Actual voltage chaege:${N} ${G}$val${N}"
 	echo ""
 	echo ""
 	if [ -f $QC ]; then
@@ -149,7 +157,9 @@ while true; do
 			echo -e "${R}L)${N} ${W}Logcat enabled/disabled${N}"
 		fi
 	fi
-
+	echo "e) Exit"
+	echo""
+	echo""
 	echo -n "\n[CHOICE]: "
 	read -r c
 	case $c in
@@ -231,6 +241,9 @@ while true; do
 			elif [ $LF = 0 ]; then
 				LF=1
 			fi
+		;;
+		e|E)
+			exit 1
 		;;
 		*)
 			clear;
