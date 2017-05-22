@@ -83,7 +83,7 @@ wait_for(){
 
 logcat(){
 	if [ $LF -eq 1 ]; then
-		echo $1 | tee -a $LOG_FILE;
+		echo "$1 $( date +'%d-%m-%Y %H:%M:%S' )" | tee -a $LOG_FILE;
 	fi
 	echo "Battery Charge Control ${ver}: $@" >> /cache/magisk.log
 	log -p i -t "Battery Charge Control ${ver}" "$@"
@@ -101,7 +101,8 @@ if [ -e "$LOG_FILE" ]; then
 fi;
 wait_for 2
 
-logcat "Starting BCC.log $( date +"%d-%m-%Y %H:%M:%S" )"
+logcat "Starting BCC.log"
+echo "BCC_Magisk $version" | tee -a $LOG_FILE;
 echo "Ok lets start working";
 sleep 2
 
@@ -166,13 +167,16 @@ while true; do
 		q|Q)
 			if [ $(cat $QC) -eq 0 ]; then
 				echo 1 > $QC
+				logcat "QC=$(cat $QC)"
 			elif [ $(cat $QC) -eq 1 ]; then
 				echo 0 > $QC
+				logcat "QC=$(cat $QC)"
 			fi
 		;;
 		m|M)
-			clear;
 			vc=$(cat $VC); convert $vc
+			logcat "Manual voltage: actual V$val"
+			clear;
 			echo -e "${W}Actual voltage charge:${N} ${G}V$val${N}"
 			echo ""
 			echo -e "${W}1) V3,92 (Long life battery)${N}"
@@ -194,6 +198,7 @@ while true; do
 					clear
 					vc=$(cat $VC); convert $vc
 					echo -e "${W}Actual voltage charge:${N} ${G}V$val${N}"
+					logcat "Manual voltage: new V$val"
 				;;
 				2)
 					echo 4160 > $VC
@@ -204,6 +209,7 @@ while true; do
 					clear
 					vc=$(cat $VC); convert $vc
 					echo -e "${W}Actual voltage charge:${N} ${G}V$val${N}"
+					logcat "Manual voltage: new V$val"
 				;;
 				3)
 					des=$(cat $DESIGN)
@@ -215,6 +221,7 @@ while true; do
 					clear
 					vc=$(cat $VC); convert $vc
 					echo -e "${W}Actual voltage charge:${N} ${G}V$val${N}"
+					logcat "Manual voltage: new V$val"
 				;;
 				b|B)
 					exit 1
@@ -224,6 +231,7 @@ while true; do
 					echo "Invalid option, please try again"
 					sleep 1
 					exit 1
+				;;
 			esac
 		;;
 		a|A)
