@@ -3,5 +3,5 @@ name=Battery Charge Control
 version=v0.1
 versionCode=1
 author=N1m0Y and veez21
-description=
+description=Extend battery life by reducing the charging voltage!
 template=3
