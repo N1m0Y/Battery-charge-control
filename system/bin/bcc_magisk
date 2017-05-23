@@ -22,6 +22,7 @@ Status=/sys/class/power_supply/battery/status
 Temp=/sys/class/power_supply/battery/temp
 Technology=/sys/class/power_supply/battery/technology
 Health=/sys/class/power_supply/battery/health
+Capacity=/sys/class/power_supply/battery/capacity
 BCE=/sys/class/power_supply/battery/battery_charging_enabled
 CE=/sys/class/power_supply/battery/charging_enabled
 LF=1
