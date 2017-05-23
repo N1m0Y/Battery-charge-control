@@ -36,7 +36,7 @@ version=$($busybox/grep "version=" /magisk/battery-charge-control/module.prop | 
 
 #Detect variables
 UNSUPPORTED=false
-[ ! -f $QC ] && [ ! -f $VC ] && UNSUPPORTED=true
+[ ! -f $Capacity ] && [ ! -f $VC ] && UNSUPPORTED=true
 
 # Colors
 G='\e[01;32m'
@@ -122,7 +122,13 @@ while true; do
 
 	echo -e "${W}BCC_Magisk $version${N}"
 	if [ -f $Status ]; then
-		echo -e "${W}Status: $(cat $Status)${N}"
+		if [ $(cat $Status) = "Discharging" ]; then
+			echo -e "${W}Status: $(cat $Status)${N}"
+		elif [ $(cat $Status) = "Charging" ]; then
+			echo -e "${W}Status:${N} ${R}$(cat $Status)${N}"
+		elif [ $(cat $Status) = "Full" ]; then
+			echo -e "${W}Status:${N} ${G}$(cat $Status)${N}"
+		fi
 	fi
 	if [ -f $Health ]; then
 		echo -e "${W}Health: $(cat $Health)${N}"
@@ -146,7 +152,7 @@ while true; do
 	if [ -f $VC ]; then
 		if [ $AV -eq 1 ] && [ $MV -eq 0 ]; then
 			echo -e "${R}M)${N} ${W}Manual charging voltage${N}"
-			echo -e "${G}A)${N} ${W}Automatic charging voltage${N}"
+			echo -e "${G}A)${N} ${W}Automatic charging voltage${N} ${G}$amc%${N}"
 		elif [ $AV -eq 0 ] && [ $MV -eq 1 ]; then
 			echo -e "${G}M)${N} ${W}Manual charging voltage${N}"
 			echo -e "${R}A)${N} ${W}Automatic charging voltage${N}"
@@ -200,6 +206,8 @@ while true; do
 					vc=$(cat $VC); convert $vc
 					echo -e "${W}Actual voltage charge:${N} ${G}V$val${N}"
 					logcat "Manual voltage: new V$val"
+					MV=1
+					AV=0
 				;;
 				2)
 					echo 4160 > $VC
@@ -211,6 +219,8 @@ while true; do
 					vc=$(cat $VC); convert $vc
 					echo -e "${W}Actual voltage charge:${N} ${G}V$val${N}"
 					logcat "Manual voltage: new V$val"
+					MV=1
+					AV=0
 				;;
 				3)
 					des=$(cat $DESIGN)
@@ -223,6 +233,8 @@ while true; do
 					vc=$(cat $VC); convert $vc
 					echo -e "${W}Actual voltage charge:${N} ${G}V$val${N}"
 					logcat "Manual voltage: new V$val"
+					MV=1
+					AV=0
 				;;
 				b|B)
 					exit 1
@@ -237,12 +249,18 @@ while true; do
 		;;
 		a|A)
 			clear;
-			echo -e "${W}How much percentage do you want to recharge? (enter only the percentage value without %)${N}"
+			echo -e "${W}How much percentage do you want to recharge? (enter only the percentage value without '%')${N}"
 			echo -n "\n[CHOICE]: "
 			read -r c
-			amv=$c
+			amc=$c
 			echo ""
-			echo "Connect the device to the charger to get started..."
+			echo ""
+			echo "BCC is set to recharge the battery by adjusting the most suitable voltage automatically up to $amc%"
+			sleep 5
+			echo "When you connect the charger will start charging (it may take a long time)"
+			sleep 5
+			AV=1
+			MV=0
 		;;
 		l|L)
 			if [ $LF = 1 ]; then
