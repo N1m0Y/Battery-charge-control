@@ -52,7 +52,9 @@ W='\e[01;37m'
 #Functions
 convert(){
 	#Convert to decimal value
-	if [ $1 -lt 10000 ]; then
+	if [ $1 -lt 1000 ]; then
+		x=$($busybox/awk "BEGIN {printf \"%.2f\n\", $1/10}")
+	elif [ $1 -lt 10000 ]; then
 		x=$($busybox/awk "BEGIN {printf \"%.2f\n\", $1/1000}")
 	elif [ $1 -gt 10000 ]; then
 		x=$($busybox/awk "BEGIN {printf \"%.2f\n\", $1/1000000}")
@@ -108,7 +110,7 @@ echo "Ok lets start working";
 sleep 2
 
 #Begin
-while true; do
+while [ $(cat $Status) = "Discharging" ]; do
 	clear;
 	echo -e "${G}Battery Charge Control${N}"
 	echo ""
@@ -139,7 +141,7 @@ while true; do
 	des=$(cat $DESIGN); convert $des
 	echo -e "${W}Voltage stock:${N} ${G}$val${N}"
 	vc=$(cat $VC); convert $vc
-	echo -e "${W}Actual voltage chaege:${N} ${G}$val${N}"
+	echo -e "${W}Actual voltage charge:${N} ${G}$val${N}"
 	echo ""
 	echo ""
 	if [ -f $QC ]; then
@@ -166,6 +168,11 @@ while true; do
 		fi
 	fi
 	echo "e) Exit"
+	echo""
+	echo""
+	if [ $AV -eq 1 ] && [ $MV -eq 0 ]; then
+		echo -e "${W}0) ------ for start recharge ------${N}"
+	fi
 	echo""
 	echo""
 	echo -n "\n[CHOICE]: "
@@ -272,6 +279,10 @@ while true; do
 		e|E)
 			exit 1
 		;;
+		0)
+			clear;
+			wait_for 3
+		;;
 		*)
 			clear;
 			echo "Invalid option, please try again"
@@ -279,4 +290,84 @@ while true; do
 			exit 1
 		;;
 	esac
+	while [ $(cat $Status) = "Charging" ]; do
+		clear;
+		echo -e "${G}Battery Charge Control${N}"
+		echo ""
+		echo ""
+		echo -e "${W}BCC_Magisk $version${N}"
+		if [ -f $Status ]; then
+			if [ $(cat $Status) = "Discharging" ]; then
+				echo -e "${W}Status: $(cat $Status)${N}"
+			elif [ $(cat $Status) = "Charging" ]; then
+				echo -e "${W}Status:${N} ${R}$(cat $Status)${N}"
+			elif [ $(cat $Status) = "Full" ]; then
+				echo -e "${W}Status:${N} ${G}$(cat $Status)${N}"
+			fi
+		fi
+		if [ -f $Health ]; then
+			echo -e "${W}Health: $(cat $Health)${N}"
+		fi
+		if [ -f $Technology ]; then
+			echo -e "${W}Technology: $(cat $Technology)${N}"
+		fi
+		if [ -f $QC ]; then
+			if [ $(cat $QC) -eq 1 ]; then
+				echo -e "${W}QuickCharge:${N} ${R}enable${N}"
+			elif [ $(cat $QC) -eq 0 ]; then
+				echo -e "${W}QuickCharge:${N} ${G}disable${N}"
+			fi
+		fi
+		des=$(cat $DESIGN); convert $des
+		echo -e "${W}Voltage stock:${N} ${G}$val${N}"
+		vc=$(cat $VC); convert $vc
+		echo -e "${W}Actual voltage charge:${N} ${G}$val${N}"
+		temp=$(cat $Temp); convert $temp
+		echo -e "${W}Temp:${N} ${G}$val${N}"
+		echo ""
+		echo ""
+		echo -e "${W}Current capacity${N} ${R}$(cat $Capacity)${N}"
+		echo -e "${W}Charging limit${N} ${G}$amc%${N}"
+		echo ""
+		if [ $(cat $Capacity) -lt 51 ] && [ $(cat $VC) -ne 3920 ]; then
+			echo 3920 > $VC
+			echo 0 > $BCE; echo 0 > $CE; echo 1 > $BCE; echo 1 > $CE;
+			logcat "$(cat $Capacity) - 3,92v - $val"
+		elif [ $(cat $Capacity) -ge 51 ] && [ $(cat $Capacity) -lt 66 ] && [ $(cat $VC) -ne 4000 ]; then
+			echo 4000 > $VC
+			echo 0 > $BCE; echo 0 > $CE; echo 1 > $BCE; echo 1 > $CE;
+			logcat "$(cat $Capacity) - 4,00v - $val"
+		elif [ $(cat $Capacity) -ge 66 ] && [ $(cat $Capacity) -lt 74 ] && [ $(cat $VC) -ne 4080 ]; then
+			echo 4080 > $VC
+			echo 0 > $BCE; echo 0 > $CE; echo 1 > $BCE; echo 1 > $CE;
+			logcat "$(cat $Capacity) - 4,08v - $val"
+		elif [ $(cat $Capacity) -ge 74 ] && [ $(cat $Capacity) -lt 80 ] && [ $(cat $VC) -ne 4160 ]; then
+			echo 4160 > $VC
+			echo 0 > $BCE; echo 0 > $CE; echo 1 > $BCE; echo 1 > $CE;
+			logcat "$(cat $Capacity) - 4,16v - $val"
+		elif [ $(cat $Capacity) -ge 80 ] && [ $(cat $Capacity) -lt 88 ] && [ $(cat $VC) -ne 4240 ]; then
+			echo 4240 > $VC
+			echo 0 > $BCE; echo 0 > $CE; echo 1 > $BCE; echo 1 > $CE;
+			logcat "$(cat $Capacity) - 4,24v - $val"
+		elif [ $(cat $Capacity) -ge 88 ] && [ $(cat $Capacity) -lt 93 ] && [ $(cat $VC) -ne 4320 ]; then
+			echo 4320 > $VC
+			echo 0 > $BCE; echo 0 > $CE; echo 1 > $BCE; echo 1 > $CE;
+			logcat "$(cat $Capacity) - 4,32v - $val"
+		elif [ $(cat $Capacity) -ge 93 ] && [ $(cat $VC) -ne 4400 ]; then
+			echo 4400 > $VC
+			echo 0 > $BCE; echo 0 > $CE; echo 1 > $BCE; echo 1 > $CE;
+			logcat "$(cat $Capacity) - 4,40v - $val"
+		fi
+		if [ $(cat $Capacity) -eq $amc ]; then
+			echo ""
+			echo ""
+			echo -e "${W}Completed!${N}"
+			echo 0 > $BCE; echo 0 > $CE;
+			logcat "$(cat $Capacity) - Completed! - $val"
+			su
+			dumpsys batterystats --reset
+			sleep 5
+		fi
+		sleep 10
+	done
 done
