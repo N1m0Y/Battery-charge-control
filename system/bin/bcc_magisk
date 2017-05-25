@@ -171,7 +171,7 @@ while [ $(cat $Status) = "Discharging" ]; do
 	echo""
 	echo""
 	if [ $AV -eq 1 ] && [ $MV -eq 0 ]; then
-		echo -e "${W}0) ------ for start recharge ------${N}"
+		echo -e "${W}0) ------ to start charging ------${N}"
 	fi
 	echo""
 	echo""
