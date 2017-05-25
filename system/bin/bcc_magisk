@@ -259,12 +259,19 @@ while [ $(cat $Status) = "Discharging" ]; do
 			echo -e "${W}How much percentage do you want to recharge? (enter only the percentage value without '%')${N}"
 			echo -n "\n[CHOICE]: "
 			read -r c
-			amc=$c
+			if [[ $c -gt 0 && $c -lt 101 ]]; then
+				amc=$c
+			else
+				echo "Invalid option, please try again"
+				sleep 3
+				break
+			fi
 			echo ""
 			echo ""
 			echo "BCC is set to recharge the battery by adjusting the most suitable voltage automatically up to $amc%"
 			sleep 5
-			echo "When you connect the charger will start charging (it may take a long time)"
+			echo ""
+			echo "Connect the charger and press 0 followed by enter to begin (it may take a long time)"
 			sleep 5
 			AV=1
 			MV=0
@@ -352,7 +359,7 @@ while [ $(cat $Status) = "Discharging" ]; do
 		elif [ $(cat $Capacity) -ge 85 ] && [ $(cat $Capacity) -lt 91 ] && [ $(cat $VC) -ne 4300 ]; then
 			echo 4300 > $VC
 			echo 0 > $BCE; echo 0 > $CE; echo 1 > $BCE; echo 1 > $CE;
-			logcat "$(cat $Capacity) - 4,32v - $val"
+			logcat "$(cat $Capacity) - 4,30v - $val"
 		elif [ $(cat $Capacity) -ge 91 ] && [ $(cat $VC) -ne 4400 ]; then
 			echo 4400 > $VC
 			echo 0 > $BCE; echo 0 > $CE; echo 1 > $BCE; echo 1 > $CE;
