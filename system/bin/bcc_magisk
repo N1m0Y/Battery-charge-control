@@ -333,27 +333,27 @@ while [ $(cat $Status) = "Discharging" ]; do
 			echo 3920 > $VC
 			echo 0 > $BCE; echo 0 > $CE; echo 1 > $BCE; echo 1 > $CE;
 			logcat "$(cat $Capacity) - 3,92v - $val"
-		elif [ $(cat $Capacity) -ge 51 ] && [ $(cat $Capacity) -lt 64 ] && [ $(cat $VC) -ne 4000 ]; then
+		elif [ $(cat $Capacity) -ge 51 ] && [ $(cat $Capacity) -lt 60 ] && [ $(cat $VC) -ne 4000 ]; then
 			echo 4000 > $VC
 			echo 0 > $BCE; echo 0 > $CE; echo 1 > $BCE; echo 1 > $CE;
 			logcat "$(cat $Capacity) - 4,00v - $val"
-		elif [ $(cat $Capacity) -ge 64 ] && [ $(cat $Capacity) -lt 74 ] && [ $(cat $VC) -ne 4080 ]; then
+		elif [ $(cat $Capacity) -ge 60 ] && [ $(cat $Capacity) -lt 70 ] && [ $(cat $VC) -ne 4080 ]; then
 			echo 4080 > $VC
 			echo 0 > $BCE; echo 0 > $CE; echo 1 > $BCE; echo 1 > $CE;
 			logcat "$(cat $Capacity) - 4,08v - $val"
-		elif [ $(cat $Capacity) -ge 74 ] && [ $(cat $Capacity) -lt 80 ] && [ $(cat $VC) -ne 4160 ]; then
+		elif [ $(cat $Capacity) -ge 70 ] && [ $(cat $Capacity) -lt 77 ] && [ $(cat $VC) -ne 4160 ]; then
 			echo 4160 > $VC
 			echo 0 > $BCE; echo 0 > $CE; echo 1 > $BCE; echo 1 > $CE;
 			logcat "$(cat $Capacity) - 4,16v - $val"
-		elif [ $(cat $Capacity) -ge 80 ] && [ $(cat $Capacity) -lt 88 ] && [ $(cat $VC) -ne 4240 ]; then
+		elif [ $(cat $Capacity) -ge 77 ] && [ $(cat $Capacity) -lt 85 ] && [ $(cat $VC) -ne 4240 ]; then
 			echo 4240 > $VC
 			echo 0 > $BCE; echo 0 > $CE; echo 1 > $BCE; echo 1 > $CE;
 			logcat "$(cat $Capacity) - 4,24v - $val"
-		elif [ $(cat $Capacity) -ge 88 ] && [ $(cat $Capacity) -lt 93 ] && [ $(cat $VC) -ne 4320 ]; then
-			echo 4320 > $VC
+		elif [ $(cat $Capacity) -ge 85 ] && [ $(cat $Capacity) -lt 91 ] && [ $(cat $VC) -ne 4300 ]; then
+			echo 4300 > $VC
 			echo 0 > $BCE; echo 0 > $CE; echo 1 > $BCE; echo 1 > $CE;
 			logcat "$(cat $Capacity) - 4,32v - $val"
-		elif [ $(cat $Capacity) -ge 93 ] && [ $(cat $VC) -ne 4400 ]; then
+		elif [ $(cat $Capacity) -ge 91 ] && [ $(cat $VC) -ne 4400 ]; then
 			echo 4400 > $VC
 			echo 0 > $BCE; echo 0 > $CE; echo 1 > $BCE; echo 1 > $CE;
 			logcat "$(cat $Capacity) - 4,40v - $val"
