@@ -17,7 +17,7 @@
 #Global variables
 QC=/sys/class/power_supply/battery/le_quick_charge_mode
 VPH=/sys/class/power_supply/battery/le_vph_voltage
-VC=/sys/class/power_supply/battery/voltage_max
+VM=/sys/class/power_supply/battery/voltage_max
 VN=/sys/class/power_supply/battery/voltage_now
 CN=/sys/class/power_supply/battery/current_now
 DESIGN=/sys/class/power_supply/battery/voltage_max_design
@@ -53,7 +53,7 @@ version=$($busybox/grep "version=" /magisk/battery-charge-control/module.prop | 
 
 #Detect variables
 UNSUPPORTED=false
-[ ! -f $Capacity ] && [ ! -f $VC ] && UNSUPPORTED=true
+[ ! -f $Capacity ] && [ ! -f $VM ] && UNSUPPORTED=true
 
 # Colors
 G='\e[01;32m'
@@ -158,9 +158,9 @@ while [ $(cat $Status) = "Discharging" ]; do
 		echo -e "${W}Technology: $(cat $Technology)${N}"
 	fi
 	des=$(cat $DESIGN); convert $des
-	echo -e "${W}Voltage stock:${N} ${G}$val${N}"
-	vc=$(cat $VC); convert $vc
-	echo -e "${W}Voltage max charge:${N} ${G}$val${N}"
+	echo -e "${W}Voltage stock:${N} ${G}${val}v${N}"
+	vm=$(cat $VM); convert $vm
+	echo -e "${W}Voltage max charge:${N} ${G}${val}v${N}"
 	echo ""
 	echo ""
 	if [ -f $QC ]; then
@@ -172,7 +172,7 @@ while [ $(cat $Status) = "Discharging" ]; do
 			echo -e "${R}Q)${N} ${W}QuickCharge enable/disable${N}"
 		fi
 	fi
-	if [ -f $VC ]; then
+	if [ -f $VM ]; then
 		if [ $AV -eq 1 ] && [ $MV -eq 0 ]; then
 			echo -e "${R}M)${N} ${W}Manual charging voltage${N}"
 			echo -e "${G}A)${N} ${W}Automatic charging voltage${N} ${G}$amc%${N}"
@@ -210,18 +210,19 @@ while [ $(cat $Status) = "Discharging" ]; do
 			fi
 		;;
 		m|M)
-			vc=$(cat $VC); convert $vc
-			logcat "Manual voltage charge: max V$val"
+			vm=$(cat $VM); convert $vm
+			logcat "Manual voltage charge: max ${val}v"
 			clear;
-			echo -e "${W}Actual voltage max charge:${N} ${G}V$val${N}"
+			echo -e "${W}Actual voltage max charge:${N} ${G}${val}v${N}"
 			echo ""
-			echo -e "${W}1) V3,92${N}"
-			echo -e "${W}2) V4,20${N}"
-			echo -e "${W}3) V4,30${N}"
+			echo -e "${W}1) 3,92v${N}"
+			echo -e "${W}2) 4,20v${N}"
+			echo -e "${W}3) 4,30v${N}"
 			if [ -f $DESIGN ]; then
 				des=$(cat $DESIGN); convert $des
-				echo -e "${W}4) V$val${N}"
+				echo -e "${W}4) ${val}v${N}"
 			fi
+			echo -e "${W}5) Custom voltage${N}"
 			echo "b) Back"
 			echo -n "\n[CHOICE]: "
 			read -r c
@@ -233,17 +234,17 @@ while [ $(cat $Status) = "Discharging" ]; do
 					if [ -f $System_snc ] && [ $(cat $System_snc) -eq 0 ]; then
 						echo 1 > $System_snc
 					fi
-					if [ `cat $VC` -ne 3920 ]; then
-						echo 3920 > $VC
+					if [ `cat $VM` -ne 3920 ]; then
+						echo 3920 > $VM
 					fi
 					wait_for 2
 					clear
 					echo "done"
 					sleep 0.5
 					clear
-					vc=$(cat $VC); convert $vc
-					echo -e "${W}Actual voltage max charge:${N} ${G}V$val${N}"
-					logcat "Manual voltage: new V$val"
+					vm=$(cat $VM); convert $vm
+					echo -e "${W}Actual voltage max charge:${N} ${G}${val}v${N}"
+					logcat "Manual voltage: new ${val}v"
 					clear;
 					echo -e "${W}How much percentage do you want to recharge? (enter only the percentage value without '%')${N}"
 					echo -n "\n[CHOICE]: "
@@ -272,17 +273,17 @@ while [ $(cat $Status) = "Discharging" ]; do
 					if [ -f $System_snc ] && [ $(cat $System_snc) -eq 0 ]; then
 						echo 1 > $System_snc
 					fi
-					if [ `cat $VC` -ne 4200 ]; then
-						echo 4200 > $VC
+					if [ `cat $VM` -ne 4200 ]; then
+						echo 4200 > $VM
 					fi
 					wait_for 2
 					clear
 					echo "done"
 					sleep 0.5
 					clear
-					vc=$(cat $VC); convert $vc
-					echo -e "${W}Actual voltage max charge:${N} ${G}V$val${N}"
-					logcat "Manual voltage: new V$val"
+					vm=$(cat $VM); convert $vm
+					echo -e "${W}Actual voltage max charge:${N} ${G}${val}v${N}"
+					logcat "Manual voltage: new ${val}v"
 					clear;
 					echo -e "${W}How much percentage do you want to recharge? (enter only the percentage value without '%')${N}"
 					echo -n "\n[CHOICE]: "
@@ -311,17 +312,17 @@ while [ $(cat $Status) = "Discharging" ]; do
 					if [ -f $System_snc ] && [ $(cat $System_snc) -eq 0 ]; then
 						echo 1 > $System_snc
 					fi
-					if [ `cat $VC` -ne 4300 ]; then
-						echo 4300 > $VC
+					if [ `cat $VM` -ne 4300 ]; then
+						echo 4300 > $VM
 					fi
 					wait_for 2
 					clear
 					echo "done"
 					sleep 0.5
 					clear
-					vc=$(cat $VC); convert $vc
-					echo -e "${W}Actual voltage max charge:${N} ${G}V$val${N}"
-					logcat "Manual voltage: new V$val"
+					vm=$(cat $VM); convert $vm
+					echo -e "${W}Actual voltage max charge:${N} ${G}${val}v${N}"
+					logcat "Manual voltage: new ${val}v"
 					clear;
 					echo -e "${W}How much percentage do you want to recharge? (enter only the percentage value without '%')${N}"
 					echo -n "\n[CHOICE]: "
@@ -351,17 +352,69 @@ while [ $(cat $Status) = "Discharging" ]; do
 						echo 1 > $System_snc
 					fi
 					des=$(cat $DESIGN)
-					if [ $(($des/1000)) -ne `cat $VC` ]; then
-						echo $(($des/1000)) > $VC
+					if [ $(($des/1000)) -ne `cat $VM` ]; then
+						echo $(($des/1000)) > $VM
 					fi
 					wait_for 2
 					clear
 					echo "done"
 					sleep 0.5
 					clear
-					vc=$(cat $VC); convert $vc
-					echo -e "${W}Actual voltage max charge:${N} ${G}V$val${N}"
-					logcat "Manual voltage: new V$val"
+					vm=$(cat $VM); convert $vm
+					echo -e "${W}Actual voltage max charge:${N} ${G}${val}v${N}"
+					logcat "Manual voltage: new ${val}v"
+					clear;
+					echo -e "${W}How much percentage do you want to recharge? (enter only the percentage value without '%')${N}"
+					echo -n "\n[CHOICE]: "
+					read -r c
+					if [ $c -gt 0 ] && [ $c -lt 101 ]; then
+						amc=$c
+					else
+						echo "Invalid option, please try again"
+						sleep 3
+						break
+					fi
+					echo ""
+					echo ""
+					echo "BCC is set to recharge the battery by adjusting the most suitable voltage automatically up to $amc%"
+					sleep 5
+					echo ""
+					echo "Connect the charger and press 0 followed by enter to begin (it may take a long time)"
+					sleep 5
+					MV=1
+					AV=0
+				;;
+				5)
+					clear;
+					echo -e "${W}Insert the charge voltage in mV without adding the unit of measurement (example 4,18V = 4180mV)${N}"
+					echo -e "${W}Accepted values: min=3920 max=4400${N}"
+					echo -n "\n[CHOICE]: "
+					read -r c
+					if [[ $c -gt 3920 && $c -lt 4400 ]]; then
+						custom_v=$c
+					else
+						read
+						#echo "Invalid option, please try again"
+						#sleep 3
+						#break
+					fi
+					if [ -f $System_temp_level ] && [ $(cat $System_temp_level) -eq 0 ]; then
+						echo 1 > $System_temp_level
+					fi
+					if [ -f $System_snc ] && [ $(cat $System_snc) -eq 0 ]; then
+						echo 1 > $System_snc
+					fi
+					if [ `cat $VM` -ne $custom_v ]; then
+						echo "$custom_v" > $VM
+					fi
+					wait_for 2
+					clear
+					echo "done"
+					sleep 0.5
+					clear
+					vm=$(cat $VM); convert $vm
+					echo -e "${W}Actual voltage max charge:${N} ${G}${val}v${N}"
+					logcat "Manual voltage: new ${val}v"
 					clear;
 					echo -e "${W}How much percentage do you want to recharge? (enter only the percentage value without '%')${N}"
 					echo -n "\n[CHOICE]: "
@@ -471,91 +524,101 @@ while [ $(cat $Status) = "Discharging" ]; do
 			fi
 		fi
 		des=$(cat $DESIGN); convert $des
-		echo -e "${W}Voltage stock:${N} ${G}$val${N}"
-		vc=$(cat $VC); convert $vc
-		echo -e "${W}Voltage max charge:${N} ${G}$val${N}"
+		echo -e "${W}Voltage stock:${N} ${G}${val}v${N}"
+		vm=$(cat $VM); convert $vm
+		echo -e "${W}Voltage max charge:${N} ${G}${val}v${N}"
 		cn=$(cat $CN); convert $cn
 		echo -e "${W}Current charge:${N} ${G}$val${N}"
 		vn=$(cat $VN); convert $vn
-		echo -e "${W}Actual voltage:${N} ${G}$val${N}"	
+		echo -e "${W}Actual voltage:${N} ${G}${val}v${N}"	
 		temp=`cat $Temp`; convert $temp
-		echo -e "${W}Temp:${N} ${G}$val${N}"
+		echo -e "${W}Temp:${N} ${G}${val}°${N}"
 		echo ""
 		echo ""
-		echo -e "${W}Current capacity${N} ${R}$(cat $Capacity)${N}"
+		echo -e "${W}Current capacity${N} ${R}$(cat $Capacity)%${N}"
 		echo -e "${W}Charging limit${N} ${G}$amc%${N}"
 		echo ""
 		if [ $AV -eq 1 ] && [ $MV -eq 0 ]; then
-			if [ $(cat $Capacity) -lt 51 ] && [ $(cat $VC) -ne 3920 ]; then
+			if [ $(cat $Capacity) -lt 51 ] && [ $(cat $VM) -ne 3920 ]; then
 				if [ -f $System_temp_level ] && [ $(cat $System_temp_level) -eq 0 ]; then
 					echo 1 > $System_temp_level
 				fi
 				if [ -f $System_snc ] && [ $(cat $System_snc) -eq 0 ]; then
 					echo 1 > $System_snc
 				fi
-				echo 3920 > $VC
+				echo 3920 > $VM
 #				echo 0 > $BCE; echo 0 > $CE; echo 1 > $BCE; echo 1 > $CE;
-				logcat "$(cat $Capacity) - 3,92v - $val"
-			elif [ $(cat $Capacity) -ge 51 ] && [ $(cat $Capacity) -lt 60 ] && [ $(cat $VC) -ne 4000 ]; then
+				logcat "$(cat $Capacity) - 3,92v - ${val}°"
+			elif [ $(cat $Capacity) -ge 51 ] && [ $(cat $Capacity) -lt 60 ] && [ $(cat $VM) -ne 4000 ]; then
 				if [ -f $System_temp_level ] && [ $(cat $System_temp_level) -eq 0 ]; then
 					echo 1 > $System_temp_level
 				fi
 				if [ -f $System_snc ] && [ $(cat $System_snc) -eq 0 ]; then
 					echo 1 > $System_snc
 				fi
-				echo 4000 > $VC
+				echo 4000 > $VM
 #				echo 0 > $BCE; echo 0 > $CE; echo 1 > $BCE; echo 1 > $CE;
-				logcat "$(cat $Capacity) - 4,00v - $val"
-			elif [ $(cat $Capacity) -ge 60 ] && [ $(cat $Capacity) -lt 70 ] && [ $(cat $VC) -ne 4080 ]; then
+				logcat "$(cat $Capacity) - 4,00v - ${val}°"
+			elif [ $(cat $Capacity) -ge 60 ] && [ $(cat $Capacity) -lt 70 ] && [ $(cat $VM) -ne 4080 ]; then
 				if [ -f $System_temp_level ] && [ $(cat $System_temp_level) -eq 0 ]; then
 					echo 1 > $System_temp_level
 				fi
 				if [ -f $System_snc ] && [ $(cat $System_snc) -eq 0 ]; then
 					echo 1 > $System_snc
 				fi
-				echo 4080 > $VC
+				echo 4080 > $VM
 #				echo 0 > $BCE; echo 0 > $CE; echo 1 > $BCE; echo 1 > $CE;
-				logcat "$(cat $Capacity) - 4,08v - $val"
-			elif [ $(cat $Capacity) -ge 70 ] && [ $(cat $Capacity) -lt 77 ] && [ $(cat $VC) -ne 4160 ]; then
+				logcat "$(cat $Capacity) - 4,08v - ${val}°"
+			elif [ $(cat $Capacity) -ge 70 ] && [ $(cat $Capacity) -lt 77 ] && [ $(cat $VM) -ne 4160 ]; then
 				if [ -f $System_temp_level ] && [ $(cat $System_temp_level) -eq 0 ]; then
 					echo 1 > $System_temp_level
 				fi
 				if [ -f $System_snc ] && [ $(cat $System_snc) -eq 0 ]; then
 					echo 1 > $System_snc
 				fi
-				echo 4160 > $VC
+				echo 4160 > $VM
 #				echo 0 > $BCE; echo 0 > $CE; echo 1 > $BCE; echo 1 > $CE;
-				logcat "$(cat $Capacity) - 4,16v - $val"
-			elif [ $(cat $Capacity) -ge 77 ] && [ $(cat $Capacity) -lt 85 ] && [ $(cat $VC) -ne 4240 ]; then
+				logcat "$(cat $Capacity) - 4,16v - ${val}°"
+			elif [ $(cat $Capacity) -ge 77 ] && [ $(cat $Capacity) -lt 85 ] && [ $(cat $VM) -ne 4240 ]; then
 				if [ -f $System_temp_level ] && [ $(cat $System_temp_level) -eq 0 ]; then
 					echo 1 > $System_temp_level
 				fi
 				if [ -f $System_snc ] && [ $(cat $System_snc) -eq 0 ]; then
 					echo 1 > $System_snc
 				fi
-				echo 4240 > $VC
+				echo 4240 > $VM
 #				echo 0 > $BCE; echo 0 > $CE; echo 1 > $BCE; echo 1 > $CE;
-				logcat "$(cat $Capacity) - 4,24v - $val"
-			elif [ $(cat $Capacity) -ge 85 ] && [ $(cat $Capacity) -lt 91 ] && [ $(cat $VC) -ne 4300 ]; then
+				logcat "$(cat $Capacity) - 4,24v - ${val}°"
+			elif [ $(cat $Capacity) -ge 85 ] && [ $(cat $Capacity) -lt 91 ] && [ $(cat $VM) -ne 4300 ]; then
 				if [ -f $System_temp_level ] && [ $(cat $System_temp_level) -eq 0 ]; then
 					echo 1 > $System_temp_level
 				fi
 				if [ -f $System_snc ] && [ $(cat $System_snc) -eq 0 ]; then
 					echo 1 > $System_snc
 				fi
-				echo 4300 > $VC
+				echo 4300 > $VM
 #				echo 0 > $BCE; echo 0 > $CE; echo 1 > $BCE; echo 1 > $CE;
-				logcat "$(cat $Capacity) - 4,30v - $val"
-			elif [ $(cat $Capacity) -ge 91 ] && [ $(cat $VC) -ne 4400 ]; then
+				logcat "$(cat $Capacity) - 4,30v - ${val}°"
+			elif [ $(cat $Capacity) -ge 91 ] && [ $(cat $VM) -ne 4400 ]; then
 				if [ -f $System_temp_level ] && [ $(cat $System_temp_level) -eq 0 ]; then
 					echo 1 > $System_temp_level
 				fi
 				if [ -f $System_snc ] && [ $(cat $System_snc) -eq 0 ]; then
 					echo 1 > $System_snc
 				fi
-				echo 4400 > $VC
+				echo 4400 > $VM
 #				echo 0 > $BCE; echo 0 > $CE; echo 1 > $BCE; echo 1 > $CE;
-				logcat "$(cat $Capacity) - 4,40v - $val"
+				logcat "$(cat $Capacity) - 4,40v - ${val}°"
+			elif [ $(cat $Capacity) -ge 91 ] && [ $(cat $VM) -ne 4400 ]; then
+				if [ -f $System_temp_level ] && [ $(cat $System_temp_level) -eq 0 ]; then
+					echo 1 > $System_temp_level
+				fi
+				if [ -f $System_snc ] && [ $(cat $System_snc) -eq 0 ]; then
+					echo 1 > $System_snc
+				fi
+				echo 4400 > $VM
+#				echo 0 > $BCE; echo 0 > $CE; echo 1 > $BCE; echo 1 > $CE;
+				logcat "$(cat $Capacity) - 4,40v - ${val}°"
 			fi
 		fi
 		#Temperature control
@@ -564,7 +627,7 @@ while [ $(cat $Status) = "Discharging" ]; do
 			t_old=$t;
 			if [ "$t" -lt "$tmin" ]; then
 				tmin=$t; convert $tmin
-				logcat "`cat $Capacity`% - Min temp: ${val}°"
+				logcat "`cat $Capacity`% - Min T: ${val}°"
 				#cn=`cat $CN`; convert $cn
 				#logcat "Actual Current: $val"
 				#vn=`cat $VN`; convert $vn
@@ -572,7 +635,7 @@ while [ $(cat $Status) = "Discharging" ]; do
 			fi;
 			if [ "$t" -gt "$tmax" ]; then
 				tmax=$t; convert $tmax
-				logcat "`cat $Capacity`% - Max temp: ${val}°"
+				logcat "`cat $Capacity`% - Max T: ${val}°"
 				#cn=`cat $CN`; convert $cn
 				#logcat "Actual Current: $val"
 				#vn=`cat $VN`; convert $vn
@@ -584,8 +647,8 @@ while [ $(cat $Status) = "Discharging" ]; do
 		if [ "$v" -ne "$v_old" ]; then
 			v_old=$v;
 			if [ "$v" -lt "$vmin" ]; then
-				tmin=$v; convert $vmin
-				logcat "`cat $Capacity`% - Min voltage: ${val}°"
+				vmin=$v; convert $vmin
+				logcat "`cat $Capacity`% - Min V: ${val}v"
 				#cn=`cat $CN`; convert $cn
 				#logcat "Actual Current: $val"
 				#vn=`cat $VN`; convert $vn
@@ -593,7 +656,7 @@ while [ $(cat $Status) = "Discharging" ]; do
 			fi;
 			if [ "$v" -gt "$vmax" ]; then
 				vmax=$v; convert $vmax
-				logcat "`cat $Capacity`% - Max voltage: ${val}°"
+				logcat "`cat $Capacity`% - Max V: ${val}v"
 				#cn=`cat $CN`; convert $cn
 				#logcat "Actual Current: $val"
 				#vn=`cat $VN`; convert $vn
@@ -606,7 +669,7 @@ while [ $(cat $Status) = "Discharging" ]; do
 			c_old=$c;
 			if [ "$c" -lt "$cmin" ]; then
 				cmin=$c; convert $cmin
-				logcat "`cat $Capacity`% - Min current: ${val}°"
+				logcat "`cat $Capacity`% - Min C: $val"
 				#cn=`cat $CN`; convert $cn
 				#logcat "Actual Current: $val"
 				#vn=`cat $VN`; convert $vn
@@ -614,7 +677,7 @@ while [ $(cat $Status) = "Discharging" ]; do
 			fi;
 			if [ "$c" -gt "$cmax" ]; then
 				cmax=$c; convert $cmax
-				logcat "`cat $Capacity`% - Max current: ${val}°"
+				logcat "`cat $Capacity`% - Max C: $val"
 				#cn=`cat $CN`; convert $cn
 				#logcat "Actual Current: $val"
 				#vn=`cat $VN`; convert $vn
