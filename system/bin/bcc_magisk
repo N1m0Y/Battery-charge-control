@@ -628,8 +628,7 @@ while [ $(cat $Status) = "Discharging" ]; do
 			echo 0 > $BCE; echo 0 > $CE;
 			temp=`cat $Temp`; convert $temp
 			logcat "`cat $Capacity`% - Completed! - Temp: ${val}°"
-			su
-			dumpsys batterystats --reset
+			su -c dumpsys batterystats --reset
 			sleep 5
 		fi
 		sleep 1
