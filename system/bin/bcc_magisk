@@ -55,6 +55,11 @@ version=$($busybox/grep "version=" /magisk/battery-charge-control/module.prop | 
 UNSUPPORTED=false
 [ ! -f $Capacity ] && [ ! -f $VM ] && UNSUPPORTED=true
 
+#Activation BCE and CE
+if [ `cat $BCE` -eq 0 ] || [ `cat $CE` -eq 0 ]; then
+	echo 1 > $BCE; echo 1 > $CE;
+fi
+
 # Colors
 G='\e[01;32m'
 R='\e[01;31m'
@@ -643,45 +648,29 @@ while [ $(cat $Status) = "Discharging" ]; do
 			fi;
 		fi
 		#Voltage control
-		v=`cat $VN`
+		v=`cat $VN`; v=$(($v/10));
 		if [ "$v" -ne "$v_old" ]; then
 			v_old=$v;
 			if [ "$v" -lt "$vmin" ]; then
-				vmin=$v; convert $vmin
+				vmin=$(($v*10)); convert $vmin
 				logcat "`cat $Capacity`% - Min V: ${val}v"
-				#cn=`cat $CN`; convert $cn
-				#logcat "Actual Current: $val"
-				#vn=`cat $VN`; convert $vn
-				#logcat "Actual Voltage: ${val}v"
 			fi;
 			if [ "$v" -gt "$vmax" ]; then
-				vmax=$v; convert $vmax
+				vmax=$(($v*10)); convert $vmax
 				logcat "`cat $Capacity`% - Max V: ${val}v"
-				#cn=`cat $CN`; convert $cn
-				#logcat "Actual Current: $val"
-				#vn=`cat $VN`; convert $vn
-				#logcat "Actual Voltage: ${val}v"
 			fi;
 		fi
 		#Current control
-		c=`cat $CN`
+		c=`cat $CN`; c=$(($c/1000));
 		if [ "$c" -ne "$c_old" ]; then
 			c_old=$c;
 			if [ "$c" -lt "$cmin" ]; then
-				cmin=$c; convert $cmin
+				cmin=$(($c*1000)); convert $cmin
 				logcat "`cat $Capacity`% - Min C: $val"
-				#cn=`cat $CN`; convert $cn
-				#logcat "Actual Current: $val"
-				#vn=`cat $VN`; convert $vn
-				#logcat "Actual Voltage: ${val}v"
 			fi;
 			if [ "$c" -gt "$cmax" ]; then
-				cmax=$c; convert $cmax
+				cmax=$(($c*1000)); convert $cmax
 				logcat "`cat $Capacity`% - Max C: $val"
-				#cn=`cat $CN`; convert $cn
-				#logcat "Actual Current: $val"
-				#vn=`cat $VN`; convert $vn
-				#logcat "Actual Voltage: ${val}v"
 			fi;
 		fi
 		if [ $(cat $Capacity) -eq $amc ]; then
