@@ -133,7 +133,11 @@ echo "BCC_Magisk $version" | tee -a $LOG_FILE;
 echo "Ok lets start working";
 sleep 2
 
-#Begin
+#
+if [ $(cat $Status) = "Charging" ]; then
+	clear;
+	echo "Unplug the charger and configure BCC!"
+else
 while [ $(cat $Status) = "Discharging" ]; do
 	clear;
 	echo -e "${G}Battery Charge Control${N}"
@@ -696,3 +700,4 @@ while [ $(cat $Status) = "Discharging" ]; do
 		sleep 1
 	done
 done
+fi
