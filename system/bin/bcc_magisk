@@ -17,11 +17,11 @@
 #Global variables
 QC=/sys/class/power_supply/battery/le_quick_charge_mode
 VPH=/sys/class/power_supply/battery/le_vph_voltage
+Status=/sys/class/power_supply/battery/status
 VM=/sys/class/power_supply/battery/voltage_max
 VN=/sys/class/power_supply/battery/voltage_now
 CN=/sys/class/power_supply/battery/current_now
 DESIGN=/sys/class/power_supply/battery/voltage_max_design
-Status=/sys/class/power_supply/battery/status
 Temp=/sys/class/power_supply/battery/temp
 Technology=/sys/class/power_supply/battery/technology
 Health=/sys/class/power_supply/battery/health
@@ -192,9 +192,13 @@ else
 			fi
 		fi
 		if [ $T -eq 1 ]; then
-			echo -e "${G}T)${N} ${W}Ricarica programmata${N}"
+			if [ $method = "H" ]; then
+				echo -e "${G}T)${N} ${W}Delayed charging${N} ${G}${hour}:${minutes}${N}"
+			elif [ $method = "P" ]; then
+				echo -e "${G}T)${N} ${W}Delayed charging${N} ${G}${percentage}%${N}"
+			fi
 		elif [ $T -eq 0 ]; then
-			echo -e "${W}T)${N} ${W}Ricarica ritardata${N}"
+			echo -e "${W}T)${N} ${W}Delayed charging${N}"
 		fi
 		if [ -f $LOG_FILE ]; then
 			if [ $LF -eq 1 ]; then
@@ -509,6 +513,7 @@ else
 							echo -e "Charging will start at: ${G}${hour}:${minutes}${N}"
 							sleep 2
 							T=1
+							method=H
 						;;
 						p|P)
 							clear
@@ -525,6 +530,7 @@ else
 							echo "Charging will start as the battery drops to ${G}${percentage}%${N}"
 							sleep 2
 							T=1
+							method=P
 						;;
 					esac
 				else
@@ -542,10 +548,10 @@ else
 				exit 1
 			;;
 		esac
-		if [ $T -eq 1 ] && [ $(date +%k%M) -ge $TR ]; then
-			echo 1 > $BCE; echo 1 > $CE
-		elif [ $T -eq 1 ] && [ `cat $Capacity` -le $P ]; then
-			echo 1 > $BCE; echo 1 > $CE
+		if [ $T -eq 1 ]; then
+			if [ $(date +%k%M) -ge $TR ] || [ `cat $Capacity` -le $P ]; then
+				echo 1 > $BCE; echo 1 > $CE
+			fi
 		fi
 		if [ `cat $Status` = "Charging" ]; then
 			echo "Char." \ "Temp." \ \ \ " Volt" \ \ \ \ \ \ "Cur." \ \ \ \ \ \ "	  Time" | tee -a $LOG_FILE;
