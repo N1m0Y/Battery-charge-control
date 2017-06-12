@@ -34,6 +34,8 @@ LF=1
 MV=1
 AV=0
 T=0
+TR=0
+P=0
 
 #Internal variables
 t=`cat $Temp`
@@ -135,10 +137,11 @@ echo "Ok lets start working";
 sleep 2
 
 #
-if [ $(cat $Status) = "Charging" ]; then
-	clear;
-	echo "Unplug the charger and configure BCC!"
-else
+#if [ $(cat $Status) = "Charging" ]; then
+#	clear;
+#	echo "Unplug the charger and configure BCC!"
+#else
+while [ 1 ]; do
 	while [ $(cat $Status) = "Discharging" ]; do
 		clear;
 		echo -e "${G}Battery Charge Control${N}"
@@ -242,6 +245,7 @@ else
 				echo -e "${W}5) Custom voltage${N}"
 				echo "b) Back"
 				echo -n "\n[CHOICE]: "
+				unset character
 				read -r character
 				case $character in
 					1)
@@ -468,6 +472,7 @@ else
 				clear;
 				echo -e "${W}How much percentage do you want to recharge? (enter only the percentage value without '%')${N}"
 				echo -n "\n[CHOICE]: "
+				unset character
 				read -r character
 				if [ $character -gt 0 ] && [ $character -lt 101 ]; then
 					amc=$character
@@ -494,6 +499,7 @@ else
 					echo "t) Time"
 					echo "p) Percentage"
 					echo -n "\n[CHOICE]: "
+					unset character
 					read -r -s -n1 character
 					case $character in
 						t|T)
@@ -549,22 +555,22 @@ else
 			;;
 		esac
 		if [ $T -eq 1 ]; then
-			if [ $(date +%k%M) -ge $TR ] || [ `cat $Capacity` -le $P ]; then
+			if [ $(date +%k%M) -eq $TR ]; then
+				echo 1 > $BCE; echo 1 > $CE
+			elif [ $(cat $Capacity) -le $P ]; then
 				echo 1 > $BCE; echo 1 > $CE
 			fi
 		fi
-		if [ `cat $Status` = "Charging" ]; then
-			echo "Char." \ "Temp." \ \ \ " Volt" \ \ \ \ \ \ "Cur." \ \ \ \ \ \ "	  Time" | tee -a $LOG_FILE;
-		fi
-		while [ `cat $Status` = "Charging" ]; do
-			if [[ `cat $BCE` -eq 0 || `cat $CE` -eq 0 ]]; then
-				echo 1 > $BCE; echo 1 > $CE;
-			fi
+	done
+	if [ $(cat $Status) = "Charging" ]; then
+		echo "Char." \ "Temp." \ \ \ " Volt" \ \ \ \ \ \ "Cur." \ \ \ \ \ \ "	  Time" | tee -a $LOG_FILE;
+	fi
+	while [ $(cat $Status) = "Charging" ]; do
 			clear;
 			echo -e "${G}Battery Charge Control${N}"
-			echo ""
-			echo ""
 			echo -e "${W}BCC_Magisk $version${N}"
+			echo ""
+			echo ""
 			if [ -f $Status ]; then
 				if [ `cat $Status` = "Discharging" ]; then
 					echo -e "${W}Status: `cat $Status`${N}"
@@ -613,7 +619,6 @@ else
 						echo 1 > $System_snc
 					fi
 					echo 3920 > $VM
-#					echo 0 > $BCE; echo 0 > $CE; echo 1 > $BCE; echo 1 > $CE;
 					logcat "`cat $Capacity` - 3,92v - ${val}°"
 				elif [ `cat $Capacity` -ge 51 ] && [ `cat $Capacity` -lt 60 ] && [ `cat $VM` -ne 4000 ]; then
 					if [ -f $System_temp_level ] && [ `cat $System_temp_level` -eq 0 ]; then
@@ -623,7 +628,6 @@ else
 						echo 1 > $System_snc
 					fi
 					echo 4000 > $VM
-#					echo 0 > $BCE; echo 0 > $CE; echo 1 > $BCE; echo 1 > $CE;
 					logcat "`cat $Capacity` - 4,00v - ${val}°"
 				elif [ `cat $Capacity` -ge 60 ] && [ `cat $Capacity` -lt 70 ] && [ `cat $VM` -ne 4080 ]; then
 					if [ -f $System_temp_level ] && [ `cat $System_temp_level` -eq 0 ]; then
@@ -633,7 +637,6 @@ else
 						echo 1 > $System_snc
 					fi
 					echo 4080 > $VM
-#					echo 0 > $BCE; echo 0 > $CE; echo 1 > $BCE; echo 1 > $CE;
 					logcat "$(cat $Capacity) - 4,08v - ${val}°"
 				elif [ $(cat $Capacity) -ge 70 ] && [ $(cat $Capacity) -lt 77 ] && [ $(cat $VM) -ne 4160 ]; then
 					if [ -f $System_temp_level ] && [ $(cat $System_temp_level) -eq 0 ]; then
@@ -643,7 +646,6 @@ else
 						echo 1 > $System_snc
 					fi
 					echo 4160 > $VM
-#					echo 0 > $BCE; echo 0 > $CE; echo 1 > $BCE; echo 1 > $CE;
 					logcat "$(cat $Capacity) - 4,16v - ${val}°"
 				elif [ $(cat $Capacity) -ge 77 ] && [ $(cat $Capacity) -lt 85 ] && [ $(cat $VM) -ne 4240 ]; then
 					if [ -f $System_temp_level ] && [ $(cat $System_temp_level) -eq 0 ]; then
@@ -653,7 +655,6 @@ else
 						echo 1 > $System_snc
 					fi
 					echo 4240 > $VM
-#					echo 0 > $BCE; echo 0 > $CE; echo 1 > $BCE; echo 1 > $CE;
 					logcat "$(cat $Capacity) - 4,24v - ${val}°"
 				elif [ $(cat $Capacity) -ge 85 ] && [ $(cat $Capacity) -lt 91 ] && [ $(cat $VM) -ne 4300 ]; then
 					if [ -f $System_temp_level ] && [ $(cat $System_temp_level) -eq 0 ]; then
@@ -663,7 +664,6 @@ else
 						echo 1 > $System_snc
 					fi
 					echo 4300 > $VM
-#					echo 0 > $BCE; echo 0 > $CE; echo 1 > $BCE; echo 1 > $CE;
 					logcat "$(cat $Capacity) - 4,30v - ${val}°"
 				elif [ $(cat $Capacity) -ge 91 ] && [ $(cat $VM) -ne 4400 ]; then
 					if [ -f $System_temp_level ] && [ $(cat $System_temp_level) -eq 0 ]; then
@@ -673,7 +673,6 @@ else
 						echo 1 > $System_snc
 					fi
 					echo 4400 > $VM
-#					echo 0 > $BCE; echo 0 > $CE; echo 1 > $BCE; echo 1 > $CE;
 					logcat "$(cat $Capacity) - 4,40v - ${val}°"
 				elif [ $(cat $Capacity) -ge 91 ] && [ $(cat $VM) -ne 4400 ]; then
 					if [ -f $System_temp_level ] && [ $(cat $System_temp_level) -eq 0 ]; then
@@ -683,7 +682,6 @@ else
 						echo 1 > $System_snc
 					fi
 					echo 4400 > $VM
-#					echo 0 > $BCE; echo 0 > $CE; echo 1 > $BCE; echo 1 > $CE;
 					logcat "$(cat $Capacity) - 4,40v - ${val}°"
 				fi
 			fi
@@ -700,28 +698,25 @@ else
 				fi;
 			fi;
 			#Voltage control
-			v=`cat $VN`; v=$(($v / 10000)); #v=$($v | $busybox/cut -f1 -d'.')
+			v=`cat $VN`; v=$(($v / 10000));
 			if [ "$v" -ne "$v_old" ]; then
 				v_old=$v;
 				if [ "$v_old" -lt "$vmin" ]; then
 					vmin=$v_old; x=$($busybox/awk "BEGIN {printf \"%.2f\n\", ${vmin}/100}")
-					#vmin=$(($v_old / 100));
 					logcat "`cat $Capacity`%" "		" "  ${x}v- " "			"
 				elif [ "$v_old" -gt "$vmax" ]; then
 					vmax=$v_old; x=$($busybox/awk "BEGIN {printf \"%.2f\n\", ${vmax}/100}")
-					#vmax=$(($v_old / 100));
 					logcat "`cat $Capacity`%" "		" "  ${x}v+ " "			"
 				fi;
 			fi;
 			#Current control
 			c=`cat $CN`;
 			if [ $c -lt -1000 ]; then
-				convert $c; #c=$($c | $busybox/cut -f1 -d',')
+				convert $c;
 				if [ "$val" -ne "$c_old" ]; then
 					c_old=$val;
 					if [ "$c_old" -lt "$cmin" ]; then
 						cmin=$c_old
-						#cmin=$(($c_old*1000)); convert $cmin
 						if [ $cmin -lt 100 ]; then
 							logcat "`cat $Capacity`%" "		" "		" "${cmin}mA-		"
 						else
@@ -729,7 +724,6 @@ else
 						fi
 					elif [ "$c_old" -gt "$cmax" ]; then
 						cmax=$c_old
-						#cmax=$(($c_old*1000)); convert $cmax
 						logcat "`cat $Capacity`%" "		" "		" "${cmax}mA+ 	"
 					fi;
 				fi;
@@ -745,6 +739,5 @@ else
 				sleep 5
 			fi
 			sleep 1
-		done
 	done
-fi
+done;
