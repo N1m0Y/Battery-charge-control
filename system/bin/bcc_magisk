@@ -50,9 +50,9 @@ c=`cat $CN`; c=$((($c*-1)/1000))
 cmin=$c
 c_old=$c
 cmax=$c
-busybox=/dev/busybox
-ver=$($busybox/grep "id=" /magisk/battery-charge-control/module.prop | $busybox/cut -d= -f2)
-version=$($busybox/grep "version=" /magisk/battery-charge-control/module.prop | $busybox/cut -d= -f2)
+#busybox=/dev/busybox
+ver=$(grep "id=" /magisk/battery-charge-control/module.prop | cut -d= -f2)
+version=$(grep "version=" /magisk/battery-charge-control/module.prop | cut -d= -f2)
 
 #Detect variables
 UNSUPPORTED=false
@@ -80,11 +80,11 @@ convert(){
 	if [ $1 -lt 0 ]; then
 		x=$((($1*-1)/1000))
 	elif [[ $1 -lt 1000 && $1 -gt 0 ]]; then
-		x=$($busybox/awk "BEGIN {printf \"%.2f\n\", $1/10}")
+		x=$(awk "BEGIN {printf \"%.2f\n\", $1/10}")
 	elif [[ $1 -lt 10000 && $1 -gt 0 ]]; then
-		x=$($busybox/awk "BEGIN {printf \"%.2f\n\", $1/1000}")
+		x=$(awk "BEGIN {printf \"%.2f\n\", $1/1000}")
 	elif [ $1 -gt 10000 ]; then
-		x=$($busybox/awk "BEGIN {printf \"%.2f\n\", $1/1000000}")
+		x=$(awk "BEGIN {printf \"%.2f\n\", $1/1000000}")
 	fi
 	val=$x
 }
@@ -702,10 +702,10 @@ while [ 1 ]; do
 			if [ "$v" -ne "$v_old" ]; then
 				v_old=$v;
 				if [ "$v_old" -lt "$vmin" ]; then
-					vmin=$v_old; x=$($busybox/awk "BEGIN {printf \"%.2f\n\", ${vmin}/100}")
+					vmin=$v_old; x=$(awk "BEGIN {printf \"%.2f\n\", ${vmin}/100}")
 					logcat "`cat $Capacity`%" "		" "  ${x}v- " "			"
 				elif [ "$v_old" -gt "$vmax" ]; then
-					vmax=$v_old; x=$($busybox/awk "BEGIN {printf \"%.2f\n\", ${vmax}/100}")
+					vmax=$v_old; x=$(awk "BEGIN {printf \"%.2f\n\", ${vmax}/100}")
 					logcat "`cat $Capacity`%" "		" "  ${x}v+ " "			"
 				fi;
 			fi;
