@@ -11,7 +11,7 @@ ui_print() {
   fi
 }
 abort() {
-  ui_print "   ! Busybox has not been installed";
+  ui_print "! Busybox has not been installed";
   ui_print " ";
   exit 1;
 }
