@@ -118,6 +118,74 @@ image_size_check() {
   curSizeM=$((curSizeM * 4 / 1024))
 }
 
+install_busybox() {
+case $ABILONG in
+  arm64*) arch=arm64;;
+  arm*) arch=arm;;
+  x86_64*) arch=x86_64;;
+  x86*) arch=x86;;
+  mips64*) arch=mips64;;
+  mips*) arch=mips;;
+  *) ui_print "! Unknown architecture: $ABILONG";
+  ui_print "! Busybox has not been installed";
+  ui_print " ";
+esac;
+
+if [ $arch ]; then
+ui_print "- Using architecture: $arch";
+
+suimg=$(ls /data/su.img || ls /cache/su.img || ls /data/magisk.img || ls /cache/magisk.img) 2>/dev/null;
+mnt=/$(basename $suimg .img);
+if [ "$suimg" ]; then
+  test "$mnt" == "/magisk" && magisk=/busybox-ndk/system;
+  test -d $mnt$magisk/xbin -o "$magisk" && target=$mnt$magisk/xbin || target=$mnt/bin;
+else
+  target=/system/xbin
+fi;
+[ "$1" == "system" ] && target=/system/xbin
+ui_print "- Using path: $target";
+mkdir -p $target;
+cp -af $INSTALLER/busybox/busybox-$arch $target/busybox;
+chown 0:0 "$target/busybox";
+chmod 755 "$target/busybox";
+if [ "$magisk" ]; then
+  cp -f $INSTALLER/busybox/module.prop /magisk/busybox-ndk/;
+  touch /magisk/busybox-ndk/auto_mount;
+fi;
+
+ui_print "- Cleaning...";
+cleanup="$target";
+if [ "$target" == "$mnt$magisk/xbin" -a -f "$mnt$magisk/bin/busybox" ]; then
+  $target/busybox rm -f $mnt$magisk/bin/busybox;
+  cleanup="$mnt$magisk/bin $target";
+fi;
+for dir in $cleanup; do
+  cd $dir;
+  for i in $(ls -al `find -type l` | $target/busybox awk '{ print $(NF-2) ":" $NF }'); do
+    case $(echo $i | $target/busybox cut -d: -f2) in
+      *busybox) list="$list $dir/$(echo $i | $target/busybox cut -d: -f1)";;
+    esac;
+  done;
+done;
+$target/busybox rm -f $list;
+
+ui_print "- Creating symlinks...";
+for applet in `$target/busybox --list`; do
+  if [ "$target" == "$mnt$magisk/bin" ]; then
+    sysbin="$(ls /system/bin)";
+    case $sysbin in
+      *$applet*) ;;
+      *) $target/busybox ln -sf busybox $applet;;
+    esac;
+  else
+    $target/busybox ln -sf busybox $applet;
+  fi;
+done;
+
+ui_print "- Busybox has been successfully installed";
+fi
+}
+
 ##########################################################################################
 # System Install Functions
 ##########################################################################################
@@ -160,6 +228,16 @@ install_system() {
   
   if is_mounted /system; then
     ui_print "- Installing to /system"
+	
+	# Install busybox
+	unzip -o "$ZIP" "busybox/*"
+	ui_print " "
+	ui_print "******************************"
+	ui_print "- Installing Busybox"
+	ui_print "- by osm0sis @xda-developers"
+	ui_print "******************************"
+	install_busybox system
+	ui_print " "
 	
 	# Replace/Remove folders
 	if [ -n $REPLACE ]; then
@@ -377,15 +455,6 @@ if [ "$ABILONG" = "x86_64" ]; then ARCH=x64; IS64BIT=true; fi;
 # You can get the Android API version from $API, the CPU architecture from $ARCH
 # Useful if you are creating Android version / platform dependent mods
 
-# Install busybox
-unzip -o "$ZIP" "busybox/*"
-chmod 777 $INSTALLER/busybox/busybox-installer
-ui_print "******************************"
-ui_print "- Installing Busybox"
-ui_print "- by osm0sis @xda-developers"
-ui_print "******************************"
-/sbin/sh $INSTALLER/busybox/busybox-installer
-
 if $SYSTEMINSTALL; then
   install_system
   exit $?
@@ -433,6 +502,16 @@ if ! is_mounted $MOUNTPATH; then
   ui_print "! $IMG mount failed... abort"
   exit 1
 fi
+
+# Install busybox
+unzip -o "$ZIP" "busybox/*"
+ui_print " "
+ui_print "******************************"
+ui_print "- Installing Busybox"
+ui_print "- by osm0sis @xda-developers"
+ui_print "******************************"
+install_busybox
+ui_print " "
 
 # Create mod paths
 rm -rf $MODPATH 2>/dev/null
