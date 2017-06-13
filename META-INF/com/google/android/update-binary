@@ -73,12 +73,14 @@ mount_image() {
 }
 
 set_perm() {
-  chown $2:$3 $1 || exit 1
-  chmod $4 $1 || exit 1
-  if [ ! -z "$5" ]; then
-    chcon $5 $1 2>/dev/null
-  else
-    chcon 'u:object_r:system_file:s0' $1 2>/dev/null
+  if [ -f $1 ]; then
+    chown $2:$3 $1 || exit 1
+    chmod $4 $1 || exit 1
+    if [ ! -z "$5" ]; then
+      chcon $5 $1 2>/dev/null
+    else
+      chcon 'u:object_r:system_file:s0' $1 2>/dev/null
+    fi
   fi
 }
 
@@ -114,6 +116,129 @@ image_size_check() {
   curFreeM=$(((curSizeM - curUsedM) * 4 / 1024))
   curUsedM=$((curUsedM * 4 / 1024 + 1))
   curSizeM=$((curSizeM * 4 / 1024))
+}
+
+##########################################################################################
+# System Install Functions
+##########################################################################################
+
+set_file_prop() {
+  [ -n "$3" ] && prop=$3 || prop=/system/build.prop
+  if (grep -q "$1=" $prop); then
+    sed -i "s/${1}=.*/${1}=${2}/g" $prop
+  else
+    echo "${1}=${2}" >> $prop
+  fi
+}
+
+detect_initpath() {
+  [ ! $INITPATH ] && {
+    if [ -d /system/su.d ]; then
+      INITPATH=/system/su.d
+    elif [ -d /system/etc/init.d ];then
+      INITPATH=/system/etc/init.d
+    fi
+  
+    if [ ! $INITPATH ]; then
+      [ -f /data/su.img ] && {
+	    mount_image /data/su.img /su
+	    if is_mounted /su; then
+	      [ -d /su/su.d ] && INITPATH=/su/su.d
+	    fi
+	  }
+    fi
+  }
+}
+
+install_system() {
+  # Detect path for scripts (see detect_initpath function)
+  detect_initpath
+  
+  # Unzip files
+  cd $INSTALLER
+  unzip -o "$ZIP"
+  
+  if is_mounted /system; then
+    ui_print "- Installing to /system"
+	
+	# Replace/Remove folders
+	if [ -n $REPLACE ]; then
+	  ui_print "- Removing files"
+	  [ "$PERMANENTDELETE" == false ] && {
+        for TARGET in $REPLACE; do
+          mv $TARGET $TARGET.bak
+        done
+	  } || {
+        for TARGET in $REPLACE; do
+          rm -rf $TARGET
+        done
+	  }
+	fi
+    
+	# Copy files in system folder to /system
+	if $AUTOMOUNT; then
+	  ui_print "- Copying files to /system"
+	  cp -af system/* /system
+	fi
+	
+	# Set properties
+	if [ -z $BUILDPROP ]; then
+	  if [ -n $INITPATH ]; then
+	    if $PROPFILE; then
+	      ui_print "- Setting property scripts"
+	      echo "#!/system/bin/sh" > $INITPATH/${MODID}-prop.sh
+		  echo "" >> $INITPATH/${MODID}-prop.sh
+	      for i in $(grep "[a-zA-Z0-9]=[a-zA-Z0-9]" $INSTALLER/common/system.prop | sed 's/ /_/g'); do
+	        [[ $(echo $i | grep "#_") ]] || echo "setprop ${i%%=*} ${i#*=}" >> $INITPATH/${MODID}-prop.sh
+          done
+	      echo "" >> $INITPATH/${MODID}-prop.sh
+	      set_perm $INITPATH/${MODID}-prop.sh 0 0 0700 
+	    fi
+	  else  
+	    ui_print "! No proper directory to put scripts (prop)"
+	  fi
+	elif $BUILDPROP; then
+	  ui_print "- Setting properties directly in /system/build.prop"
+	  for i in $(grep "[a-zA-Z0-9]=[a-zA-Z0-9]" $INSTALLER/common/system.prop | sed 's/ /_/g'); do
+	    [[ $(echo $i | grep "#_") ]] || set_file_prop "${i%%=*}" "${i#*=}" /system/build.prop
+      done	  
+	fi
+	
+	# post-fs-data script to $INITPATH
+	# post-fs-data and latestartservice scripts might be executed almost
+	# at the same time.
+	[ -n $INITPATH ] && {
+	  if $POSTFSDATA; then
+	    ui_print "- Copying post-fs-data script to $INITPATH"
+	    cp -af $INSTALLER/common/post-fs-data.sh $INITPATH/${MODID}-1.sh
+	    set_perm $INITPATH/${MODID}-1.sh 0 0 0700
+	  fi
+	} || ui_print "! No proper directory to put scripts (post-fs-data)"
+	
+	# latestartservice script to $INITPATH
+	# post-fs-data and latestartservice scripts might be executed almost
+	# at the same time.
+	[ -n $INITPATH ] && {
+	  if $LATESTARTSERVICE; then
+	    ui_print "- Copying latestartservice script to $INITPATH"
+	    cp -af $INSTALLER/common/service.sh $INITPATH/${MODID}-2.sh
+	    set_perm $INITPATH/${MODID}-2.sh 0 0 0700
+	  fi
+	} || ui_print "! No proper directory to put scripts (service)"
+	
+	# Set permissions
+	ui_print "- Setting permissions"
+	set_permissions_system
+	
+	ui_print "- Done"
+	umount /system
+	umount /vendor 2>/dev/null
+	true
+	exit
+  else
+    ui_print "! System not mounted"
+	exit 1
+  fi
 }
 
 ##########################################################################################
@@ -168,6 +293,10 @@ if [ ! -f "config.sh" ]; then
 fi
 
 source config.sh
+[ -f /dev/.config ] && {
+  chmod 755 /dev/.config
+  source /dev/.config
+}
 
 INSTALLER=$TMPDIR/$MODID
 MODPATH=$MOUNTPATH/$MODID
@@ -175,6 +304,34 @@ MODPATH=$MOUNTPATH/$MODID
 mkdir -p $INSTALLER
 cd $INSTALLER
 unzip -o "$ZIP" "common/*" module.prop
+
+[ -z $SYSTEMINSTALL ] && [ -z $MAGISKINSTALL ] && {
+  MAGISKINSTALL=false
+  SYSTEMINSTALL=false
+  if [ -f /data/magisk.img ]; then
+    MAGISKINSTALL=true
+    PERM=ro
+  else
+    SYSTEMINSTALL=true
+    PERM=rw
+  fi
+  ! $MAGISKINSTALL && ! $SYSTEMINSTALL && SYSTEMINSTALL=true && PERM=rw
+}
+
+if [ $MAGISKINSTALL ] && $MAGISKINSTALL && [ -z $SYSTEMINSTALL ]; then
+  PERM=ro
+  MAGISKINSTALL=true
+  SYSTEMINSTALL=false
+fi
+if [ $SYSTEMINSTALL ] && [ -z $MAGISKINSTALL ] && $SYSTEMINSTALL; then
+  PERM=rw
+  MAGISKINSTALL=false
+  SYSTEMINSTALL=true
+fi
+
+$MAGISKINSTALL && SYSTEMINSTALL=false
+$SYSTEMINSTALL && MAGISKINSTALL=false
+[ ! $PERM ] && PERM=rw
 
 ##########################################################################################
 # Main
@@ -184,13 +341,19 @@ unzip -o "$ZIP" "common/*" module.prop
 print_modname
 
 # Please leave this message in your flashable zip for credits :)
-ui_print "******************************"
-ui_print "Powered by Magisk (@topjohnwu)"
-ui_print "******************************"
+if $MAGISKINSTALL; then
+  ui_print "******************************"
+  ui_print "Powered by Magisk (@topjohnwu)"
+  ui_print "******************************"
+else
+  ui_print "******************************"
+  ui_print "System/Less Install  (@veez21)"
+  ui_print "******************************"
+fi
 
-ui_print "- Mounting /system(ro), /vendor(ro), /data, /cache"
-mount -o ro /system 2>/dev/null
-mount -o ro /vendor 2>/dev/null
+ui_print "- Mounting /system($PERM), /vendor($PERM), /data, /cache"
+mount -o $PERM /system 2>/dev/null
+mount -o $PERM /vendor 2>/dev/null
 mount /data 2>/dev/null
 mount /cache 2>/dev/null
 
@@ -214,12 +377,18 @@ if [ "$ABILONG" = "x86_64" ]; then ARCH=x64; IS64BIT=true; fi;
 # You can get the Android API version from $API, the CPU architecture from $ARCH
 # Useful if you are creating Android version / platform dependent mods
 
+if $SYSTEMINSTALL; then
+  install_system
+  exit $?
+fi
+
 if is_mounted /data; then
   IMG=/data/$IMGNAME
   if [ ! -f "/data/magisk.img" ]; then
     ui_print "! Magisk is not installed!"
-    ui_print "! Magisk is required for this mod!"
-    exit 1
+	ui_print "- Resorting to System Install"
+	install_system
+	exit $?
   fi
 else
   IMG=/cache/magisk.img
