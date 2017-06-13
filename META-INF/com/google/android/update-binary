@@ -380,6 +380,8 @@ if [ "$ABILONG" = "x86_64" ]; then ARCH=x64; IS64BIT=true; fi;
 # Install busybox
 unzip -o "$ZIP" "busybox/*"
 chmod 777 $INSTALLER/busybox/busybox-installer
+export INSTALLER
+export ABILONG
 ui_print "******************************"
 ui_print "- Installing Busybox"
 ui_print "- by osm0sis @xda-developers"

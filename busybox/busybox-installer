@@ -16,15 +16,6 @@ abort() {
   exit 1;
 }
 
-get_file_prop() { 
-  _prop=$(grep "$1=" $2)
-  [ $? -gt 0 ] && return 1
-  echo ${_prop#*=}
-  unset _prop
-}
-
-ABILONG=$(get_file_prop ro.product.cpu.abi /system/build.prop)
-
 case $ABILONG in
   arm64*) arch=arm64;;
   arm*) arch=arm;;
