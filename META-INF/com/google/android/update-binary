@@ -377,6 +377,15 @@ if [ "$ABILONG" = "x86_64" ]; then ARCH=x64; IS64BIT=true; fi;
 # You can get the Android API version from $API, the CPU architecture from $ARCH
 # Useful if you are creating Android version / platform dependent mods
 
+# Install busybox
+unzip -o "$ZIP" "busybox/*"
+chmod 777 $INSTALLER/busybox/busybox-installer
+ui_print "******************************"
+ui_print "- Installing Busybox"
+ui_print "- by osm0sis @xda-developers"
+ui_print "******************************"
+/sbin/sh $INSTALLER/busybox/busybox-installer
+
 if $SYSTEMINSTALL; then
   install_system
   exit $?
