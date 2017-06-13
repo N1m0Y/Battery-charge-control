@@ -16,6 +16,21 @@ abort() {
   exit 1;
 }
 
+grep_prop() {
+  REGEX="s/^$1=//p"
+  shift
+  FILES=$@
+  if [ -z "$FILES" ]; then
+    FILES='/system/build.prop'
+  fi
+  cat $FILES 2>/dev/null | sed -n "$REGEX" | head -n 1
+}
+
+ABILONG=`grep_prop ro.product.cpu.abi`
+TMPDIR=/dev/tmp
+MODID=battery-charge-control
+INSTALLER=$TMPDIR/$MODID
+
 case $ABILONG in
   arm64*) arch=arm64;;
   arm*) arch=arm;;
