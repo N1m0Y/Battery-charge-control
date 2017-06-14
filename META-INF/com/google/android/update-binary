@@ -256,7 +256,7 @@ install_system() {
 	# Copy files in system folder to /system
 	if $AUTOMOUNT; then
 	  ui_print "- Copying files to /system"
-	  cp -af system/* /system
+	  cp -af $INSTALLER/system/* /system
 	fi
 	
 	# Set properties
@@ -407,8 +407,8 @@ if [ $SYSTEMINSTALL ] && [ -z $MAGISKINSTALL ] && $SYSTEMINSTALL; then
   SYSTEMINSTALL=true
 fi
 
-$MAGISKINSTALL && SYSTEMINSTALL=false
-$SYSTEMINSTALL && MAGISKINSTALL=false
+$MAGISKINSTALL && SYSTEMINSTALL=false && PERM=ro
+$SYSTEMINSTALL && MAGISKINSTALL=false && PERM=rw
 [ ! $PERM ] && PERM=rw
 
 ##########################################################################################

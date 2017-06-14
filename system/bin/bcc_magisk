@@ -199,8 +199,6 @@ while [ 1 ]; do
 				echo -e "${G}T)${N} ${W}Delayed charging${N} ${G}${hour}:${minutes}${N}"
 			elif [ $method = "P" ]; then
 				echo -e "${G}T)${N} ${W}Delayed charging${N} ${G}${percentage}%${N}"
-			elif [ $method = "C" ]; then
-				echo -e "${G}T)${N} ${W}Delayed charging${N} ${G}${percentage}% or ${G}${hour}:${minutes}${N}"
 			fi
 		elif [ $T -eq 0 ]; then
 			echo -e "${W}T)${N} ${W}Delayed charging${N}"
@@ -272,7 +270,7 @@ while [ 1 ]; do
 						echo -e "${W}How much percentage do you want to recharge? (enter only the percentage value without '%')${N}"
 						echo -n "\n[CHOICE]: "
 						read -r character
-						if [ $character -gt 0 ] && [ $character -lt 101 ]; then
+						if [[ $character -gt 0 && $character -lt 101 ]]; then
 							amc=$character
 						else
 							echo "Invalid option, please try again"
@@ -311,7 +309,7 @@ while [ 1 ]; do
 						echo -e "${W}How much percentage do you want to recharge? (enter only the percentage value without '%')${N}"
 						echo -n "\n[CHOICE]: "
 						read -r character
-						if [ $character -gt 0 ] && [ $character -lt 101 ]; then
+						if [[ $character -gt 0 && $character -lt 101 ]]; then
 							amc=$character
 						else
 							echo "Invalid option, please try again"
@@ -350,7 +348,7 @@ while [ 1 ]; do
 						echo -e "${W}How much percentage do you want to recharge? (enter only the percentage value without '%')${N}"
 						echo -n "\n[CHOICE]: "
 						read -r character
-						if [ $character -gt 0 ] && [ $character -lt 101 ]; then
+						if [[ $character -gt 0 && $character -lt 101 ]]; then
 							amc=$character
 						else
 							echo "Invalid option, please try again"
@@ -500,7 +498,6 @@ while [ 1 ]; do
 					echo ""
 					echo "t) Time"
 					echo "p) Percentage"
-					echo "c) Combined"
 					echo -n "\n[CHOICE]: "
 					unset character
 					read -r -s -n1 character
@@ -526,7 +523,7 @@ while [ 1 ]; do
 						;;
 						p|P)
 							clear
-							echo "Choose which percentage to start recharging"
+							echo "Choose which percentage should start charging"
 							echo ""
 							echo -n "\n[Percentage]: "
 							read -r percentage
@@ -540,36 +537,6 @@ while [ 1 ]; do
 							sleep 2
 							T=1
 							method=P
-						;;
-						c|C)
-							clear
-							echo "The combined mode allows you to program charging according to the time or battery percentage. Recharging starts when one of the two conditions is true"
-							echo ""
-							sleep 2
-							echo "Sets the start time"
-							echo ""
-							echo -n "\n[Hour]: "
-							read -r hour
-							echo ""
-							echo -n "\n[Minutes]: "
-							read -r minutes
-							TR="${hour}${minutes}"
-							echo ""
-							echo ""
-							echo "Choose which percentage to start recharging"
-							echo ""
-							echo -n "\n[Percentage]: "
-							read -r percentage
-							echo ""
-							P="$percentage"
-							echo 0 > "$BCE"; echo 0 > "$CE"
-							clear
-							echo "Connect the charger to the power outlet and connect your device"
-							sleep 1
-							echo -e "Charging will start at: ${G}${hour}:${minutes} or when the battery drops to ${G}${percentage}%${N}"
-							sleep 2
-							T=1
-							method=C
 						;;
 					esac
 				else
@@ -633,7 +600,7 @@ while [ 1 ]; do
 			vm=`cat $VM`; convert $vm
 			echo -e "${W}Voltage max charge:${N} ${G}${val}v${N}"
 			cn=`cat $CN`; convert $cn
-			echo -e "${W}Current charge:${N} ${G}${val}${N}"
+			echo -e "${W}Current charge:${N} ${G}$val${N}"
 			vn=`cat $VN`; convert $vn
 			echo -e "${W}Actual voltage:${N} ${G}${val}v${N}"	
 			temp=`cat $Temp`; convert $temp
@@ -641,7 +608,7 @@ while [ 1 ]; do
 			echo ""
 			echo ""
 			echo -e "${W}Current capacity${N} ${R}`cat $Capacity`%${N}"
-			echo -e "${W}Charging limit${N} ${G}${amc}%${N}"
+			echo -e "${W}Charging limit${N} ${G}$amc%${N}"
 			echo ""
 			if [ $AV -eq 1 ] && [ $MV -eq 0 ]; then
 				if [ `cat $Capacity` -lt 51 ] && [ `cat $VM` -ne 3920 ]; then
