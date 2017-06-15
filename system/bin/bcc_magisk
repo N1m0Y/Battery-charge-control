@@ -30,26 +30,28 @@ BCE=/sys/class/power_supply/battery/battery_charging_enabled
 CE=/sys/class/power_supply/battery/charging_enabled
 System_temp_level=/sys/class/power_supply/battery/system_temp_level
 System_snc=/sys/class/power_supply/battery/system_snc
-LF=1
-MV=1
-AV=0
-T=0
+LOG_FILE=/sdcard/BCC.log;
+Log_old=/sdcard/BCC.old;
+LF=1 #LogFile 0=disabled 1=enabled
+MV=1 #ManualVoltage 0=Automatic 1=Manual 
+AV=0 #AutomaticVoltage 0=Manual 1=Automatic
+T=0 #Times
 TR=0
 P=0
 
 #Internal variables
-t=`cat $Temp`
-tmin=$t
-t_old=$t
-tmax=$t
-v=`cat $VN`; v=$(($v/10000))
-vmin=$v
-v_old=$v
-vmax=$v
-c=`cat $CN`; c=$((($c*-1)/1000))
-cmin=$c
-c_old=$c
-cmax=$c
+t=`cat $Temp` #Temp
+tmin=$t #Temp min
+t_old=$t #Temp old
+tmax=$t  #Temp max
+v=`cat $VN`; v=$(($v/10000)) #Volt
+vmin=$v #Volt min
+v_old=$v #Volt old
+vmax=$v #Volt max
+c=`cat $CN`; c=$((($c*-1)/1000)) #Current
+cmin=$c #Current min
+c_old=$c #Current old
+cmax=$c #Current max
 #busybox=/dev/busybox
 ver=$(grep "id=" /magisk/battery-charge-control/module.prop | cut -d= -f2)
 version=$(grep "version=" /magisk/battery-charge-control/module.prop | cut -d= -f2)
@@ -59,7 +61,7 @@ UNSUPPORTED=false
 [ ! -f $Capacity ] && [ ! -f $VM ] && UNSUPPORTED=true
 
 #Activation BCE and CE
-if [ `cat $BCE` -eq 0 ] || [ `cat $CE` -eq 0 ]; then
+if [[ `cat $BCE` -eq 0 || `cat $CE` -eq 0 ]]; then
 	echo 1 > $BCE; echo 1 > $CE;
 fi
 
@@ -91,7 +93,7 @@ convert(){
 
 wait_for(){
 	i=1
-	while [ $i -lt $(($1+1)) ]; do
+	while [[ $i -lt $(($1+1)) ]]; do
 		clear;
 		echo "|"
 		sleep 0.20
@@ -120,8 +122,6 @@ logcat(){
 }
 
 # Log file #
-LOG_FILE=/sdcard/BCC.log;
-Log_old=/sdcard/BCC.old;
 if [ -e "$Log_old" ]; then
 	rm $Log_old;
 fi;
@@ -131,7 +131,7 @@ if [ -e "$LOG_FILE" ]; then
 fi;
 wait_for 2
 
-logcat "Starting BCC.log" "			    "
+logcat "Starting BCC.log" "		" "	"
 echo "BCC_Magisk $version" | tee -a $LOG_FILE;
 echo "Ok lets start working";
 sleep 2
@@ -388,7 +388,7 @@ while [ 1 ]; do
 						echo -e "${W}How much percentage do you want to recharge? (enter only the percentage value without '%')${N}"
 						echo -n "\n[CHOICE]: "
 						read -r character
-						if [ $character -gt 0 ] && [ $character -lt 101 ]; then
+						if [[ $character -gt 0 && $character -lt 101 ]]; then
 							amc=$character
 						else
 							echo "Invalid option, please try again"
@@ -440,7 +440,7 @@ while [ 1 ]; do
 						echo -e "${W}How much percentage do you want to recharge? (enter only the percentage value without '%')${N}"
 						echo -n "\n[CHOICE]: "
 						read -r character
-						if [ $character -gt 0 ] && [ $character -lt 101 ]; then
+						if [[ $character -gt 0 && $character -lt 101 ]]; then
 							amc=$character
 						else
 							echo "Invalid option, please try again"
@@ -474,7 +474,7 @@ while [ 1 ]; do
 				echo -n "\n[CHOICE]: "
 				unset character
 				read -r character
-				if [ $character -gt 0 ] && [ $character -lt 101 ]; then
+				if [[ $character -gt 0 && $character -lt 101 ]]; then
 					amc=$character
 				else
 					echo "Invalid option, please try again"
