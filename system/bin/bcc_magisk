@@ -131,7 +131,7 @@ if [ -e "$LOG_FILE" ]; then
 fi;
 wait_for 2
 
-logcat "Starting BCC.log" "		" "	"
+logcat "Starting BCC.log" "		" "		"
 echo "BCC_Magisk $version" | tee -a $LOG_FILE;
 echo "Ok lets start working";
 sleep 2
@@ -199,6 +199,8 @@ while [ 1 ]; do
 				echo -e "${G}T)${N} ${W}Delayed charging${N} ${G}${hour}:${minutes}${N}"
 			elif [ $method = "P" ]; then
 				echo -e "${G}T)${N} ${W}Delayed charging${N} ${G}${percentage}%${N}"
+			elif [ $method = "HP" ]; then
+				echo -e "${G}T)${N} ${W}Delayed charging${N} ${G}${hour}:${minutes}${N} ${W}or${N} ${G}${percentage}%${N}"
 			fi
 		elif [ $T -eq 0 ]; then
 			echo -e "${W}T)${N} ${W}Delayed charging${N}"
@@ -498,6 +500,7 @@ while [ 1 ]; do
 					echo ""
 					echo "t) Time"
 					echo "p) Percentage"
+					echo "b) Both"
 					echo -n "\n[CHOICE]: "
 					unset character
 					read -r -s -n1 character
@@ -537,6 +540,35 @@ while [ 1 ]; do
 							sleep 2
 							T=1
 							method=P
+						;;
+						b|B)
+							clear
+							echo "Set the time and percentage of charge to which you want to start charging. Recharging will begin when the first of the two conditions is true."
+							sleep 2
+							clear
+							echo "Sets the start time"
+							echo ""
+							echo -n "\n[Hour]: "
+							read -r hour
+							echo ""
+							echo -n "\n[Minutes]: "
+							read -r minutes
+							TR="${hour}${minutes}"
+							clear
+							echo "Choose which percentage should start charging"
+							echo ""
+							echo -n "\n[Percentage]: "
+							read -r percentage
+							echo ""
+							P="$percentage"
+							echo 0 > "$BCE"; echo 0 > "$CE"
+							clear
+							echo "Connect the charger to the power outlet and connect your device"
+							sleep 1
+							echo "Charging will start at: ${G}${hour}:${minutes}${N} or as the battery drops to ${G}${percentage}%${N}"
+							sleep 2
+							T=1
+							method=HP
 						;;
 					esac
 				else
