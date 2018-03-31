@@ -1,0 +1,909 @@
+#!/system/bin/sh
+# Terminal Magisk Mod Template
+# by veez21 @ xda-developers
+
+
+# Magisk Module ID **
+# > ENTER MAGISK MODULE ID HERE
+ID="battery-charge-control"
+
+#=========================== Check root
+_name=$0; _name=${_name##*/}
+id | grep -q root
+[ $? -ne 0 ] && { echo "$ID needs to be in a root shell!"; echo "type 'su' then '$_name'"; exit 1; }
+
+#=========================== Set Log Files
+mount -o remount,rw /cache 2>/dev/null
+mount -o rw,remount /cache 2>/dev/null
+# > Logs should go in this file
+LOG=/cache/${ID}.log
+oldLOG=/cache/${ID}-old.log
+# > Verbose output goes here
+VERLOG=/cache/${ID}-verbose.log
+oldVERLOG=/cache/${ID}-verbose-old.log
+
+#=========================== Start Logging verbosely
+mv -f $VERLOG $oldVERLOG 2>/dev/null; mv -f $LOG $oldLOG 2>/dev/null
+set -x 2>$VERLOG
+
+#=========================== Determine if A/B OTA device
+if [ -d /system_root ]; then
+  isABDevice=true
+  SYSTEM=/system_root/system
+  SYSTEM2=/system
+else
+  isABDevice=false
+  SYSTEM=/system
+  SYSTEM2=/system
+fi
+
+#=========================== Set Busybox (Used by Magisk) up
+# > Do not touch!
+set_busybox() {
+  if [ -x "$1" ]; then
+    for i in $(${1} --list); do
+      if [ "$i" != 'echo' ]; then
+        alias "$i"="${1} $i" 2>>$LOG >>$LOG
+      fi
+    done
+    _busybox=true
+    _bb=$1
+  fi
+}
+_busybox=false
+if [ -d /sbin/.core/busybox ]; then
+  PATH=$PATH:/sbin/.core/busybox
+  _bb=/sbin/.core/busybox/busybox
+  _busybox=true
+elif [ ! -x $SYSTEM/xbin/busybox ]; then
+  set_busybox /data/magisk/busybox
+  set_busybox /data/adb/magisk/busybox
+else
+  alias busybox=""
+fi
+if [ -x $SYSTEM/xbin/busybox ]; then
+  _bb=$SYSTEM/xbin/busybox
+elif [ -x $SYSTEM/bin/busybox ]; then
+  _bb=$SYSTEM/bin/busybox
+elif [ $_busybox ]; then
+  true
+else
+  echo "! Busybox not detected.."
+  echo "Please install one (@osm0sis' busybox recommended)"
+  false
+fi
+[ $? -ne 0 ] && exit $?
+_bbname=$(busybox | head -n1)
+_bbname=${_bbname%'('*}
+BBok=true
+if [ "$_bbname" == "" ]; then
+  _bbname="BusyBox not found!"
+  BBok=false
+fi
+
+#=========================== Default Functions
+
+# set_file_prop <property> <value> <prop.file>
+set_file_prop() {
+  sed -i "s/${1}=.*/${1}=${2}/g" $3
+}
+
+# https://github.com/fearside/ProgressBar
+ProgressBar() {
+# Process data
+	_progress=$(((${1}*100/${2}*100)/100))
+	_done=$(((${_progress}*4)/10))
+	_left=$((40-$_done))
+# Build progressbar string lengths
+	_done=$(printf "%${_done}s")
+	_left=$(printf "%${_left}s")
+
+# 1.2 Build progressbar strings and print the ProgressBar line
+# 1.2.1 Output example:
+# 1.2.1.1 Progress : [########################################] 100%
+printf "\rProgress : [${_done// /=}${_left// / }] ${_progress}%%"
+
+}
+
+# "cmd & spinner [message]"
+spinner() {
+  PID=$!
+  h=0; anim='-\|/'; 
+  while [ -d /proc/$PID ]; do
+	h=$(((h+1)%4))
+	printf "\r$@ [${anim:$h:1}]"
+  done
+}
+
+# Log files will be uploaded to termbin.com
+upload_logs() {
+  $BBok && {
+    echo -n "Testing internet connection "
+    ping -q -c 1 -W 1 google.com >/dev/null 2>/dev/null && echo "- OK" || { echo "Error"; exit 1; }
+	verUp=none; oldverUp=none; logUp=none; oldlogUp=none;
+	echo "Uploading logs"
+	[ -s $VERLOG ] && verUp=$(cat $VERLOG | nc termbin.com 9999)
+    [ -s $oldVERLOG ] && oldverUp=$(cat $oldVERLOG | nc termbin.com 9999)
+    [ -s $LOG ] && logUp=$(cat $LOG | nc termbin.com 9999)
+    [ -s $oldLOG ] && oldlogUp=$(cat $oldLOG | nc termbin.com 9999)
+	echo -n "Link: "
+	echo "$MODEL ($DEVICE) API $API\n$ROM\n$ID\n
+	O_Verbose: $oldverUp
+	Verbose:   $verUp
+	
+	O_Log: $oldlogUp
+	Log:   $logUp" | nc termbin.com 9999
+  } || echo "Busybox not found!"
+  exit
+}
+
+#=========================== Default Variables
+# > Stuff here is used for some other stuff
+# > Edit only if necessary!
+
+# Magisk Mod Directory
+MOUNTPATH=/magisk
+if [ ! -d $MOUNTPATH ]; then
+  if [ -d /sbin/.core/img ]; then
+    MOUNTPATH=/sbin/.core/img
+  fi
+fi
+MODDIR="$MOUNTPATH/$ID"
+if [ ! -d $MODDIR ]; then
+  if [ -d /sbin/.core/img/$ID ]; then
+    MODDIR=/sbin/.core/img/$ID
+  else
+    echo "Module not detected!"
+    exit 1
+  fi
+fi
+
+# Import util_functions.sh
+[ -f /data/adb/magisk/util_functions.sh ] && . /data/adb/magisk/util_functions.sh || exit 1
+
+# Device Info
+# BRAND MODEL DEVICE API ABI ABI2 ABILONG ARCH
+BRAND=$(getprop ro.product.brand)
+MODEL=$(getprop ro.product.model)
+DEVICE=$(getprop ro.product.device)
+ROM=$(getprop ro.build.display.id)
+api_level_arch_detect
+
+# Version Number
+VER=$(grep_prop version $MODDIR/module.prop)
+# Version Code
+REL=$(grep_prop versionCode $MODDIR/module.prop)
+# Author
+AUTHOR=$(grep_prop author $MODDIR/module.prop)
+# Mod Name/Title
+MODTITLE=$(grep_prop name $MODDIR/module.prop)
+
+# Colors
+G='\e[01;32m'    # GREEN
+R='\e[01;31m'    # RED
+Y='\e[01;33m'    # YELLOW
+B='\e[01;34m'    # BLUE
+V='\e[01;35m'    # VIOLET
+Bl='\e[01;30m'   # BLACK
+C='\e[01;36m'    # CYAN
+W='\e[01;37m'    # WHITE
+N='\e[00;37;40m' # How to use (example): echo "${G}example${N}"
+
+# Remove colors if -nc
+[ "$1" == "-nc" ] && {
+  G=''; R=''; Y=''; B=''; V=''; Bl=''; C=''; W=''; N=''
+}
+
+# Divider (based on $MODTITLE, $VER, and $REL characters)
+div="${Bl}$(printf '%*s' "$(echo $MODTITLE $VER $REL | tr " " '_' | wc -c)" '' | tr " " '=')${N}"
+
+# Heading
+mod_head() {
+  clear
+  echo "$div"
+  echo "${W}$MODTITLE $VER${N}${Bl}($REL)${N}"
+  echo "by ${W}$AUTHOR${N}"
+  echo "$div"
+  echo "${W}$_bbname${N}"
+  echo "${Bl}$_bb${N}"
+  echo "$div"
+}
+
+#=========================== Main
+# > You can start your MOD here.
+# > You can add functions, variables & etc.
+# > Rather than editing the default vars above.
+
+#################################################################################
+# nome	 : Battery Charge Control												#
+# autore : N1m0Y and @veez21													#
+# anno   : 2017-2018															#
+# licenza: questo script è software libero: puoi ridistribuirlo e/o modificarlo	#
+#          rispettando i termini della licenza GNU General Public licenses		#
+#          stabiliti dalla Free Software Foundation, versione 3.				#
+#          Questo script è distribuito nella speranza che possa essere utile,	#
+#          ma SENZA ALCUNA GARANZIA.											#
+#          Consulta la licenza GNU General Public License per avere ulteriori	#
+#          dettagli <http://www.gnu.org/licenses/>. 							#
+# Credits: @@@@@																#
+#################################################################################
+
+#Global variables
+QC=/sys/class/power_supply/battery/le_quick_charge_mode
+VPH=/sys/class/power_supply/battery/le_vph_voltage
+Status=/sys/class/power_supply/battery/status
+VM=/sys/class/power_supply/battery/voltage_max
+VN=/sys/class/power_supply/battery/voltage_now
+CN=/sys/class/power_supply/battery/current_now
+DESIGN=/sys/class/power_supply/battery/voltage_max_design
+Temp=/sys/class/power_supply/battery/temp
+Technology=/sys/class/power_supply/battery/technology
+Health=/sys/class/power_supply/battery/health
+Capacity=/sys/class/power_supply/battery/capacity
+BCE=/sys/class/power_supply/battery/battery_charging_enabled
+CE=/sys/class/power_supply/battery/charging_enabled
+System_temp_level=/sys/class/power_supply/battery/system_temp_level
+System_snc=/sys/class/power_supply/battery/system_snc
+LOG_FILE=/sdcard/BCC.log;
+Log_old=/sdcard/BCC.old;
+LF=1 #LogFile 0=disabled 1=enabled
+MV=1 #ManualVoltage 0=Automatic 1=Manual 
+AV=0 #AutomaticVoltage 0=Manual 1=Automatic
+T=0 #Times
+TR=0
+P=0
+
+#Internal variables
+t=`cat $Temp` #Temp
+tmin=$t #Temp min
+t_old=$t #Temp old
+tmax=$t  #Temp max
+v=`cat $VN`; v=$(($v/10000)) #Volt
+vmin=$v #Volt min
+v_old=$v #Volt old
+vmax=$v #Volt max
+c=`cat $CN`; c=$((($c*-1)/1000)) #Current
+cmin=$c #Current min
+c_old=$c #Current old
+cmax=$c #Current max
+
+#Detect variables
+UNSUPPORTED=false
+[ ! -f $Capacity ] && [ ! -f $VM ] && [ ! -f $DESIGN ] && UNSUPPORTED=true
+
+#Activation BCE and CE
+[[ `cat $BCE` -eq 0 || `cat $CE` -eq 0 ]] && echo 1 > $BCE; echo 1 > $CE;
+
+#Functions
+convert(){
+	#Convert value
+	if [ "$1" -lt 0 ]; then
+		x=$((($1*-1)/1000))
+	elif [[ "$1" -lt 1000 && $1 -gt 0 ]]; then
+		x=$(awk "BEGIN {printf \"%.2f\n\", $1/10}")
+	elif [[ "$1" -lt 10000 && $1 -gt 0 ]]; then
+		x=$(awk "BEGIN {printf \"%.2f\n\", $1/1000}")
+	elif [ "$1" -gt 10000 ]; then
+		x=$(awk "BEGIN {printf \"%.2f\n\", $1/1000000}")
+	fi
+	val=$x
+}
+
+logcat(){
+	[ $LF -eq 1 ] && echo "$1" \ " $2" \ "$3" \ "$4" \ "$( date +'%d-%m-%Y %H:%M:%S' )" | tee -a $LOG_FILE;
+	echo "Battery Charge Control ${ver}: $@" >> /cache/magisk.log
+	log -p i -t "Battery Charge Control ${ver}" "$@"
+}
+
+# Log file #
+[ -e "$Log_old" ] && rm $Log_old;
+[ -e "$LOG_FILE" ] && { mv $LOG_FILE $Log_old; rm $LOG_FILE; }
+
+logcat "Starting BCC.log" "		" "		"
+echo "BCC_Magisk $version" | tee -a $LOG_FILE;
+sleep 2 & spinner Loading "Ok lets start working"
+
+while [ 1 ]; do
+	while [ $(cat $Status) = "Discharging" ]; do
+		mod_head
+		$UNSUPPORTED && {
+			echo "Your device is unsupported!"
+			echo "You can try changing your kernel/ROM\nthat has the necessary files to be supported."
+			exit 1
+		}
+		[ -f $Status ] && {
+			[ $(cat $Status) = "Discharging" ] && CHARGEstat="${W}$(cat $Status)${N}"
+			[ $(cat $Status) = "Charging" ] && CHARGEstat="${R}$(cat $Status)${N}"
+			[ $(cat $Status) = "Full" ] && CHARGEstat="${G}$(cat $Status)${N}"
+			echo -e "${W}Status:${N} $CHARGEstat"
+		}
+		[ -f $Health ] && {
+			echo -e "${W}Health: $(cat $Health)${N}"
+		}
+		[ -f $Technology ] && {
+			echo -e "${W}Technology: $(cat $Technology)${N}"
+		}
+		des=$(cat $DESIGN); convert $des
+		echo -e "${W}Voltage stock:${N} ${G}${val}v${N}"
+		vm=$(cat $VM); convert $vm
+		echo -e "${W}Voltage max charge:${N} ${G}${val}v${N}"
+		echo ""
+		echo ""
+		[ -f $QC ] && {
+			[ $(cat "$QC") == "0" ] &&  QCstat="${W}Q)${N}"
+			[ $(cat "$QC") == "1" ] && [ $(cat $VPH) -eq 0 ] &&  QCstat="${G}Q)${N}"
+			[ $(cat "$QC") == "1" ] && [ $(cat $VPH) -eq 1 ] &&  QCstat="${R}Q)${N}"
+			echo -e "$QCstat ${W}QuickCharge enable/disable${N}"
+		}
+		[ -f $VM ] && {
+			[ $AV -eq 1 ] && [ $MV -eq 0 ] && { MCVstat="${R}M)${N}"; ACVstat="${G}A)${N}"; AMCstat=""}
+			[ $AV -eq 0 ] && [ $MV -eq 1 ] && { MCVstat="${G}M)${N}"; ACVstat="${R}A)${N}"; AMCstat="${G}$amc%${N}"}
+			echo -e "$MCVstat ${W}Manual charging voltage${N}"
+			echo -e "$ACVstat ${W}Automatic charging voltage${N} $AMCstat"
+		[ $T -eq 1 ] && {
+			[ $method = "H" ] && DelCstat="${G}${hour}:${minutes}${N}"
+			[ $method = "P" ] && DelCstat="${G}${percentage}%${N}"
+			[ $method = "HP" ] && DelCstat="${G}${hour}:${minutes}${N} ${W}or${N} ${G}${percentage}%${N}"
+			echo -e "${G}T)${N} ${W}Delayed charging${N} $DelCstat"
+		} || [ $T -eq 0 ] && {
+			echo -e "${W}T)${N} ${W}Delayed charging${N}"
+		}
+		[ -f $LOG_FILE ] && {
+			[ $LF -eq 1 ] && LOGCATstat="${G}L)${N}" || LOGCATstat="{R}L)${N}"
+			echo -e "$LOGCATstat ${W}Logcat enabled/disabled${N}"
+		}
+		echo "e) Exit"
+		echo ""
+		echo ""
+		echo -n "\n[CHOICE]: "
+		unset character
+		read -r -s -n1 -t 1 character
+		case $character in
+			q|Q)
+				if [ `cat $QC` -eq 0 ]; then
+					echo 1 > $QC;
+					logcat "QC=`cat $QC`						 "
+				elif [ `cat $QC` -eq 1 ] && [ `cat $VPH` -eq 0 ]; then
+					echo 1 > $VPH;
+					logcat "VPH=`cat $VPH`						 "
+				elif [ `cat $QC` -eq 1 ] && [ `cat $VPH` -eq 1 ]; then
+					echo 0 > $QC; echo 0 > $VPH;
+					logcat "QC=`cat $QC` - VPH=`cat $VPH`				 "
+				fi
+			;;
+			m|M)
+				vm=$(cat $VM); convert $vm
+				logcat "Manual voltage: max ${val}v  	 "
+				clear;
+				echo -e "${W}Actual voltage max:${N} ${G}${val}v${N}"
+				echo ""
+				echo -e "${W}1) 3,92v${N}"
+				echo -e "${W}2) 4,20v${N}"
+				echo -e "${W}3) 4,30v${N}"
+				[ -f $DESIGN ] && {
+					des=$(cat $DESIGN); convert $des
+					echo -e "${W}4) ${val}v${N}"
+				}
+				echo -e "${W}5) Custom voltage${N}"
+				echo "b) Back"
+				echo -n "\n[CHOICE]: "
+				unset character
+				read -r character
+				case $character in
+					1)
+						[ -f $System_temp_level -a $(cat $System_temp_level) -eq 0 ] && echo 1 > $system_temp_level
+						[ -f $System_snc -a $(cat $System_snc) -eq 0 ] && echo 1 > $System_snc
+						[ `cat $VM` -ne 3920 ] && echo 3920 > $VM
+						sleep 2 & spinner Loading
+						clear
+						echo "done"
+						sleep 0.5
+						clear
+						vm=$(cat $VM); convert $vm
+						echo -e "${W}Actual voltage max:${N} ${G}${val}v${N}"
+						logcat "Manual voltage: new ${val}v 	 "
+						clear;
+						echo -e "${W}How much percentage do you want to recharge? (enter only the percentage value without '%')${N}"
+						echo -n "\n[CHOICE]: "
+						read -r character
+						if [[ $character -gt 0 && $character -lt 101 ]]; then
+							amc=$character
+						else
+							echo "Invalid option, please try again"
+							sleep 3
+							break
+						fi
+						echo ""
+						echo ""
+						echo "BCC is set to recharge the battery by adjusting the most suitable voltage automatically up to $amc%"
+						sleep 2
+						echo ""
+						echo "Connect the charger and press 0 followed by enter to begin (it may take a long time)"
+						sleep 2
+						MV=1
+						AV=0
+					;;
+					2)
+						if [ -f $System_temp_level ] && [ $(cat $System_temp_level) -eq 0 ]; then
+							echo 1 > $System_temp_level
+						fi
+						if [ -f $System_snc ] && [ $(cat $System_snc) -eq 0 ]; then
+							echo 1 > $System_snc
+						fi
+						if [ `cat $VM` -ne 4200 ]; then
+							echo 4200 > $VM
+						fi
+						sleep 2 & spinner Loading
+						clear
+						echo "done"
+						sleep 0.5
+						clear
+						vm=$(cat $VM); convert $vm
+						echo -e "${W}Actual voltage max:${N} ${G}${val}v${N}"
+						logcat "Manual voltage: new ${val}v 	 "
+						clear;
+						echo -e "${W}How much percentage do you want to recharge? (enter only the percentage value without '%')${N}"
+						echo -n "\n[CHOICE]: "
+						read -r character
+						if [[ $character -gt 0 && $character -lt 101 ]]; then
+							amc=$character
+						else
+							echo "Invalid option, please try again"
+							sleep 3
+							break
+						fi
+						echo ""
+						echo ""
+						echo "BCC is set to recharge the battery by adjusting the most suitable voltage automatically up to $amc%"
+						sleep 2
+						echo ""
+						echo "Connect the charger and press 0 followed by enter to begin (it may take a long time)"
+						sleep 2
+						MV=1
+						AV=0
+					;;
+					3)
+						if [ -f $System_temp_level ] && [ $(cat $System_temp_level) -eq 0 ]; then
+							echo 1 > $System_temp_level
+						fi
+						if [ -f $System_snc ] && [ $(cat $System_snc) -eq 0 ]; then
+							echo 1 > $System_snc
+						fi
+						if [ `cat $VM` -ne 4300 ]; then
+							echo 4300 > $VM
+						fi
+						sleep 2 & spinner Loading
+						clear
+						echo "done"
+						sleep 0.5
+						clear
+						vm=$(cat $VM); convert $vm
+						echo -e "${W}Actual voltage max:${N} ${G}${val}v${N}"
+						logcat "Manual voltage: new ${val}v 	 "
+						clear;
+						echo -e "${W}How much percentage do you want to recharge? (enter only the percentage value without '%')${N}"
+						echo -n "\n[CHOICE]: "
+						read -r character
+						if [[ $character -gt 0 && $character -lt 101 ]]; then
+							amc=$character
+						else
+							echo "Invalid option, please try again"
+							sleep 3
+							break
+						fi
+						echo ""
+						echo ""
+						echo "BCC is set to recharge the battery by adjusting the most suitable voltage automatically up to $amc%"
+						sleep 2
+						echo ""
+						echo "Connect the charger and press 0 followed by enter to begin (it may take a long time)"
+						sleep 2
+						MV=1
+						AV=0
+					;;
+					4)
+						if [ -f $System_temp_level ] && [ $(cat $System_temp_level) -eq 0 ]; then
+							echo 1 > $System_temp_level
+						fi
+						if [ -f $System_snc ] && [ $(cat $System_snc) -eq 0 ]; then
+							echo 1 > $System_snc
+						fi
+						des=$(cat $DESIGN)
+						if [ $(($des/1000)) -ne `cat $VM` ]; then
+							echo $(($des/1000)) > $VM
+						fi
+						sleep 2 & spinner Loading
+						clear
+						echo "done"
+						sleep 0.5
+						clear
+						vm=$(cat $VM); convert $vm
+						echo -e "${W}Actual voltage max:${N} ${G}${val}v${N}"
+						logcat "Manual voltage: new ${val}v 	 "
+						clear;
+						echo -e "${W}How much percentage do you want to recharge? (enter only the percentage value without '%')${N}"
+						echo -n "\n[CHOICE]: "
+						read -r character
+						if [[ $character -gt 0 && $character -lt 101 ]]; then
+							amc=$character
+						else
+							echo "Invalid option, please try again"
+							sleep 3
+							break
+						fi
+						echo ""
+						echo ""
+						echo "BCC is set to recharge the battery by adjusting the most suitable voltage automatically up to $amc%"
+						sleep 2
+						echo ""
+						echo "Connect the charger and press 0 followed by enter to begin (it may take a long time)"
+						sleep 2
+						MV=1
+						AV=0
+					;;
+					5)
+						clear;
+						echo -e "${W}Insert the charge voltage in mV without adding the unit of measurement (example 4,18V = 4180mV)${N}"
+						echo -e "${W}Accepted values: min=3920 max=4400${N}"
+						echo -n "\n[CHOICE]: "
+						read -r character
+						if [[ $character -gt 3920 && $character -lt 4400 ]]; then
+							custom_v=$character
+						else
+							read
+							#echo "Invalid option, please try again"
+							#sleep 3
+							#break
+						fi
+						if [ -f $System_temp_level ] && [ $(cat $System_temp_level) -eq 0 ]; then
+							echo 1 > $System_temp_level
+						fi
+						if [ -f $System_snc ] && [ $(cat $System_snc) -eq 0 ]; then
+							echo 1 > $System_snc
+						fi
+						if [ `cat $VM` -ne $custom_v ]; then
+							echo "$custom_v" > $VM
+						fi
+						sleep 2 & spinner Loading
+						clear
+						echo "done"
+						sleep 0.5
+						clear
+						vm=$(cat $VM); convert $vm
+						echo -e "${W}Actual voltage max:${N} ${G}${val}v${N}"
+						logcat "Manual voltage: new ${val}v 	 "
+						clear;
+						echo -e "${W}How much percentage do you want to recharge? (enter only the percentage value without '%')${N}"
+						echo -n "\n[CHOICE]: "
+						read -r character
+						if [[ $character -gt 0 && $character -lt 101 ]]; then
+							amc=$character
+						else
+							echo "Invalid option, please try again"
+							sleep 3
+							break
+						fi
+						echo ""
+						echo ""
+						echo "BCC is set to recharge the battery by adjusting the most suitable voltage automatically up to $amc%"
+						sleep 2
+						echo ""
+						echo "Connect the charger and press 0 followed by enter to begin (it may take a long time)"
+						sleep 2
+						MV=1
+						AV=0
+					;;
+					b|B)
+						exit 1
+					;;
+					*)
+						clear;
+						echo "Invalid option, please try again"
+						sleep 1
+						exit 1
+					;;
+				esac
+			;;
+			a|A)
+				clear;
+				echo -e "${W}How much percentage do you want to recharge? (enter only the percentage value without '%')${N}"
+				echo -n "\n[CHOICE]: "
+				unset character
+				read -r character
+				if [[ $character -gt 0 && $character -lt 101 ]]; then
+					amc=$character
+				else
+					echo "Invalid option, please try again"
+					sleep 3
+					break
+				fi
+				echo ""
+				echo ""
+				echo "BCC is set to recharge the battery by adjusting the most suitable voltage automatically up to $amc%"
+				sleep 2
+				echo ""
+				echo "Connect the charger and press 0 followed by enter to begin (it may take a long time)"
+				sleep 2
+				AV=1
+				MV=0
+			;;
+			t|T)
+				if [ $T -eq 0 ]; then
+					clear;
+					echo "Choose the charging schedule method"
+					echo ""
+					echo "t) Time"
+					echo "p) Percentage"
+					echo "b) Both"
+					echo -n "\n[CHOICE]: "
+					unset character
+					read -r -s -n1 character
+					case $character in
+						t|T)
+							clear
+							echo "Sets the start time"
+							echo ""
+							echo -n "\n[Hour]: "
+							read -r hour
+							echo ""
+							echo -n "\n[Minutes]: "
+							read -r minutes
+							TR="${hour}${minutes}"
+							echo 0 > "$BCE"; echo 0 > "$CE"
+							clear
+							echo "Connect the charger to the power outlet and connect your device"
+							sleep 1
+							echo -e "Charging will start at: ${G}${hour}:${minutes}${N}"
+							sleep 2
+							T=1
+							method=H
+						;;
+						p|P)
+							clear
+							echo "Choose which percentage should start charging"
+							echo ""
+							echo -n "\n[Percentage]: "
+							read -r percentage
+							echo ""
+							P="$percentage"
+							echo 0 > "$BCE"; echo 0 > "$CE"
+							clear
+							echo "Connect the charger to the power outlet and connect your device"
+							sleep 1
+							echo "Charging will start as the battery drops to ${G}${percentage}%${N}"
+							sleep 2
+							T=1
+							method=P
+						;;
+						b|B)
+							clear
+							echo "Set the time and percentage of charge to which you want to start charging. Recharging will begin when the first of the two conditions is true."
+							sleep 2
+							clear
+							echo "Sets the start time"
+							echo ""
+							echo -n "\n[Hour]: "
+							read -r hour
+							echo ""
+							echo -n "\n[Minutes]: "
+							read -r minutes
+							TR="${hour}${minutes}"
+							clear
+							echo "Choose which percentage should start charging"
+							echo ""
+							echo -n "\n[Percentage]: "
+							read -r percentage
+							echo ""
+							P="$percentage"
+							echo 0 > "$BCE"; echo 0 > "$CE"
+							clear
+							echo "Connect the charger to the power outlet and connect your device"
+							sleep 1
+							echo "Charging will start at: ${G}${hour}:${minutes}${N} or as the battery drops to ${G}${percentage}%${N}"
+							sleep 2
+							T=1
+							method=HP
+						;;
+					esac
+				else
+					T=0
+				fi
+			;;
+			l|L)
+				if [ $LF = 1 ]; then
+					LF=0
+				elif [ $LF = 0 ]; then
+					LF=1
+				fi
+			;;
+			e|E)
+				exit 1
+			;;
+		esac
+		if [ $T -eq 1 ]; then
+			if [ $(date +%k%M) -eq $TR ]; then
+				echo 1 > $BCE; echo 1 > $CE
+			elif [ $(cat $Capacity) -le $P ]; then
+				echo 1 > $BCE; echo 1 > $CE
+			fi
+		fi
+	done
+	if [ $(cat $Status) = "Charging" ]; then
+		echo "Char." \ "Temp." \ \ \ " Volt" \ \ \ \ \ \ "Cur." \ \ \ \ \ \ "	  Time" | tee -a $LOG_FILE;
+	fi
+	while [ $(cat $Status) = "Charging" ]; do
+		clear;
+		echo -e "${G}Battery Charge Control${N}"
+		echo -e "${W}BCC_Magisk $version${N}"
+		echo ""
+		echo ""
+		if [ -f $Status ]; then
+			if [ `cat $Status` = "Discharging" ]; then
+				echo -e "${W}Status: `cat $Status`${N}"
+			elif [ `cat $Status` = "Charging" ]; then
+				echo -e "${W}Status:${N} ${R}`cat $Status`${N}"
+			elif [ `cat $Status` = "Full" ]; then
+				echo -e "${W}Status:${N} ${G}`cat $Status`${N}"
+			fi
+		fi
+		if [ -f $Health ]; then
+			echo -e "${W}Health: `cat $Health`${N}"
+		fi
+		if [ -f $Technology ]; then
+			echo -e "${W}Technology: `cat $Technology`${N}"
+		fi
+		if [ -f $QC ]; then
+			if [ `cat $QC` -eq 0 ]; then
+				echo -e "${W}QuickCharge:${N} ${W}disenable${N}"
+			elif [ `cat $QC` -eq 1 ] && [ `cat $VPH` -eq 0 ]; then
+				echo -e "${W}QuickCharge:${N} ${G}enable${N}"
+			elif [ `cat $QC` -eq 1 ] && [ `cat $VPH` -eq 1 ]; then
+				echo -e "${W}QuickCharge:${N} ${R}vitamin${N}"
+			fi
+		fi
+		des=`cat $DESIGN`; convert $des
+		echo -e "${W}Voltage stock:${N} ${G}${val}v${N}"
+		vm=`cat $VM`; convert $vm
+		echo -e "${W}Voltage max charge:${N} ${G}${val}v${N}"
+		cn=`cat $CN`; convert $cn
+		echo -e "${W}Current charge:${N} ${G}$val${N}"
+		vn=`cat $VN`; convert $vn
+		echo -e "${W}Actual voltage:${N} ${G}${val}v${N}"	
+		temp=`cat $Temp`; convert $temp
+		echo -e "${W}Temp:${N} ${G}${val}°${N}"
+		echo ""
+		echo ""
+		echo -e "${W}Current capacity${N} ${R}`cat $Capacity`%${N}"
+		echo -e "${W}Charging limit${N} ${G}$amc%${N}"
+		echo ""
+		if [ $AV -eq 1 ] && [ $MV -eq 0 ]; then
+			if [ `cat $Capacity` -lt 51 ] && [ `cat $VM` -ne 3920 ]; then
+				if [ -f $System_temp_level ] && [ `cat $System_temp_level` -eq 0 ]; then
+					echo 1 > $System_temp_level
+				fi
+				if [ -f $System_snc ] && [ `cat $System_snc` -eq 0 ]; then
+					echo 1 > $System_snc
+				fi
+				echo 3920 > $VM
+				logcat "`cat $Capacity` - 3,92v - ${val}°"
+			elif [ `cat $Capacity` -ge 51 ] && [ `cat $Capacity` -lt 60 ] && [ `cat $VM` -ne 4000 ]; then
+				if [ -f $System_temp_level ] && [ `cat $System_temp_level` -eq 0 ]; then
+					echo 1 > $System_temp_level
+				fi
+				if [ -f $System_snc ] && [ `cat $System_snc` -eq 0 ]; then
+					echo 1 > $System_snc
+				fi
+				echo 4000 > $VM
+				logcat "`cat $Capacity` - 4,00v - ${val}°"
+			elif [ `cat $Capacity` -ge 60 ] && [ `cat $Capacity` -lt 70 ] && [ `cat $VM` -ne 4080 ]; then
+				if [ -f $System_temp_level ] && [ `cat $System_temp_level` -eq 0 ]; then
+					echo 1 > $System_temp_level
+				fi
+				if [ -f $System_snc ] && [ `cat $System_snc` -eq 0 ]; then
+					echo 1 > $System_snc
+				fi
+				echo 4080 > $VM
+				logcat "$(cat $Capacity) - 4,08v - ${val}°"
+			elif [ $(cat $Capacity) -ge 70 ] && [ $(cat $Capacity) -lt 77 ] && [ $(cat $VM) -ne 4160 ]; then
+				if [ -f $System_temp_level ] && [ $(cat $System_temp_level) -eq 0 ]; then
+					echo 1 > $System_temp_level
+				fi
+				if [ -f $System_snc ] && [ $(cat $System_snc) -eq 0 ]; then
+					echo 1 > $System_snc
+				fi
+				echo 4160 > $VM
+				logcat "$(cat $Capacity) - 4,16v - ${val}°"
+			elif [ $(cat $Capacity) -ge 77 ] && [ $(cat $Capacity) -lt 85 ] && [ $(cat $VM) -ne 4240 ]; then
+				if [ -f $System_temp_level ] && [ $(cat $System_temp_level) -eq 0 ]; then
+					echo 1 > $System_temp_level
+				fi
+				if [ -f $System_snc ] && [ $(cat $System_snc) -eq 0 ]; then
+					echo 1 > $System_snc
+				fi
+				echo 4240 > $VM
+				logcat "$(cat $Capacity) - 4,24v - ${val}°"
+			elif [ $(cat $Capacity) -ge 85 ] && [ $(cat $Capacity) -lt 91 ] && [ $(cat $VM) -ne 4300 ]; then
+				if [ -f $System_temp_level ] && [ $(cat $System_temp_level) -eq 0 ]; then
+					echo 1 > $System_temp_level
+				fi
+				if [ -f $System_snc ] && [ $(cat $System_snc) -eq 0 ]; then
+					echo 1 > $System_snc
+				fi
+				echo 4300 > $VM
+				logcat "$(cat $Capacity) - 4,30v - ${val}°"
+			elif [ $(cat $Capacity) -ge 91 ] && [ $(cat $VM) -ne 4400 ]; then
+				if [ -f $System_temp_level ] && [ $(cat $System_temp_level) -eq 0 ]; then
+					echo 1 > $System_temp_level
+				fi
+				if [ -f $System_snc ] && [ $(cat $System_snc) -eq 0 ]; then
+					echo 1 > $System_snc
+				fi
+				echo 4400 > $VM
+				logcat "$(cat $Capacity) - 4,40v - ${val}°"
+			elif [ $(cat $Capacity) -ge 91 ] && [ $(cat $VM) -ne 4400 ]; then
+				if [ -f $System_temp_level ] && [ $(cat $System_temp_level) -eq 0 ]; then
+					echo 1 > $System_temp_level
+				fi
+				if [ -f $System_snc ] && [ $(cat $System_snc) -eq 0 ]; then
+					echo 1 > $System_snc
+				fi
+				echo 4400 > $VM
+				logcat "$(cat $Capacity) - 4,40v - ${val}°"
+			fi
+		fi
+		#Temperature control
+		t=`cat $Temp`
+		if [ "$t" -ne "$t_old" ]; then
+			t_old=$t;
+			if [ "$t_old" -lt "$tmin" ]; then
+				tmin=$t_old; convert $tmin
+				logcat "`cat $Capacity`%" " ${val}°-" "			" "		"
+			elif [ "$t_old" -gt "$tmax" ]; then
+				tmax=$t_old; convert $tmax
+				logcat "`cat $Capacity`%" " ${val}°+" "		" "			"
+			fi;
+		fi;
+		#Voltage control
+		v=`cat $VN`; v=$(($v / 10000));
+		if [ "$v" -ne "$v_old" ]; then
+			v_old=$v;
+			if [ "$v_old" -lt "$vmin" ]; then
+				vmin=$v_old; x=$(awk "BEGIN {printf \"%.2f\n\", ${vmin}/100}")
+				logcat "`cat $Capacity`%" "		" "  ${x}v- " "			"
+			elif [ "$v_old" -gt "$vmax" ]; then
+				vmax=$v_old; x=$(awk "BEGIN {printf \"%.2f\n\", ${vmax}/100}")
+				logcat "`cat $Capacity`%" "		" "  ${x}v+ " "			"
+			fi;
+		fi;
+		#Current control
+		c=`cat $CN`;
+		if [ $c -lt -1000 ]; then
+			convert $c;
+			if [ "$val" -ne "$c_old" ]; then
+				c_old=$val;
+				if [ "$c_old" -lt "$cmin" ]; then
+					cmin=$c_old
+					if [ $cmin -lt 100 ]; then
+						logcat "`cat $Capacity`%" "		" "		" "${cmin}mA-		"
+					else
+						logcat "`cat $Capacity`%" "		" "		" "${cmin}mA-  	"
+					fi
+				elif [ "$c_old" -gt "$cmax" ]; then
+					cmax=$c_old
+					logcat "`cat $Capacity`%" "		" "		" "${cmax}mA+ 	"
+				fi;
+			fi;
+		fi
+		if [ $(cat $Capacity) -eq $amc ]; then
+			echo ""
+			echo ""
+			echo -e "${W}Completed!${N}"
+			echo 0 > $BCE; echo 0 > $CE;
+			temp=`cat $Temp`; convert $temp
+			logcat "`cat $Capacity`%" " ${val}°" "	Completed!" "		"
+			dumpsys batterystats --reset
+			sleep 5
+		fi
+		sleep 1
+	done
+done;
